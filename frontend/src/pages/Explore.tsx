@@ -228,12 +228,11 @@ export default function Explore() {
         {mode === 'events' && <div className="flex flex-wrap items-center gap-3">
           <label className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-bold">
             <MapPin className="size-4 text-brand-strong" aria-hidden /> Distance
-            <select value={radiusKm ?? 'all'} onChange={e => { setRadiusKm(e.target.value === 'all' ? null : Number(e.target.value)); setSelected(null) }} className="min-h-8 rounded-lg bg-surface px-2 text-fg" aria-describedby="distance-origin">
+            <select value={radiusKm ?? 'all'} onChange={e => { setRadiusKm(e.target.value === 'all' ? null : Number(e.target.value)); setSelected(null) }} className="min-h-8 rounded-lg bg-surface px-2 text-fg">
               <option value="all">Any distance</option>
               {[1, 5, 10, 25, 50, 100].map(km => <option key={km} value={km}>Within {km} km</option>)}
             </select>
           </label>
-          <p id="distance-origin" className="text-xs text-muted" role="status">{mapOrigin ? `From map point (${mapOrigin.lat.toFixed(3)}, ${mapOrigin.lng.toFixed(3)})` : userPos ? 'From your location' : 'From downtown Calgary'} · straight-line distance. Click the map to change the starting point.</p>
           {locationError && <p role="status" className="w-full text-sm text-danger">{locationError}</p>}
         </div>}
         {/* Filters */}
