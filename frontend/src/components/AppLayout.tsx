@@ -5,6 +5,7 @@ import { LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { NAV } from '../config/nav'
 import { useAuth } from '../context/AuthContext'
 import { Logo } from './Logo'
+import { ThemeToggle } from './ThemeToggle'
 import { cx } from './ui'
 
 export function AppLayout() {
@@ -47,6 +48,7 @@ export function AppLayout() {
           <div className="md:hidden"><Logo compact /></div>
           <p className="hidden text-sm font-bold text-muted md:block">{current?.label}</p>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <div className="text-right leading-tight">
               <p className="text-sm font-bold">{user?.name}</p>
               <p className="text-xs text-muted">{user?.email}</p>

@@ -72,17 +72,18 @@ export type Person = {
   languages: string[]
 }
 
+// Colours are CSS variables (src/index.css) so light and dark mode can each use their own set.
 export const CATEGORIES: Record<Category, { label: string; icon: LucideIcon; color: string }> = {
-  tech: { label: 'Tech', icon: Cpu, color: '#5a3ff0' },
-  social: { label: 'Social', icon: Users, color: '#e0457b' },
-  outdoors: { label: 'Outdoorsy', icon: Trees, color: '#0e8a5f' },
-  arts: { label: 'Arts', icon: Palette, color: '#c2410c' },
-  food: { label: 'Food', icon: Soup, color: '#b45309' },
-  sports: { label: 'Sports', icon: Dumbbell, color: '#0369a1' },
-  family: { label: 'Family', icon: Baby, color: '#7c3aed' },
-  learning: { label: 'Learning', icon: GraduationCap, color: '#4338ca' },
-  wellness: { label: 'Wellness', icon: Sprout, color: '#15803d' },
-  volunteer: { label: 'Volunteer', icon: HeartHandshake, color: '#be123c' },
+  tech: { label: 'Tech', icon: Cpu, color: 'var(--cat-tech)' },
+  social: { label: 'Social', icon: Users, color: 'var(--cat-social)' },
+  outdoors: { label: 'Outdoorsy', icon: Trees, color: 'var(--cat-outdoors)' },
+  arts: { label: 'Arts', icon: Palette, color: 'var(--cat-arts)' },
+  food: { label: 'Food', icon: Soup, color: 'var(--cat-food)' },
+  sports: { label: 'Sports', icon: Dumbbell, color: 'var(--cat-sports)' },
+  family: { label: 'Family', icon: Baby, color: 'var(--cat-family)' },
+  learning: { label: 'Learning', icon: GraduationCap, color: 'var(--cat-learning)' },
+  wellness: { label: 'Wellness', icon: Sprout, color: 'var(--cat-wellness)' },
+  volunteer: { label: 'Volunteer', icon: HeartHandshake, color: 'var(--cat-volunteer)' },
 }
 
 export const VIBES: Record<Vibe, { label: string; short: string; hint: string }> = {

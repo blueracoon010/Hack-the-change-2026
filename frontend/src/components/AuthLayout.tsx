@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Accessibility, Camera, ShieldCheck, Users } from 'lucide-react'
 import { APP } from '../config/app'
 import { Logo } from './Logo'
+import { ThemeToggle } from './ThemeToggle'
 
 const FEATURES = [
   { icon: Camera, text: 'Snap a community flyer and it lands on the map' },
@@ -32,7 +33,8 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
         <p className="relative text-sm text-white/80">Made in Calgary · {APP.org}</p>
       </aside>
 
-      <main className="flex items-center justify-center p-6 sm:p-12">
+      <main className="relative flex items-center justify-center p-6 sm:p-12">
+        <ThemeToggle className="absolute right-4 top-4" />
         <div className="w-full max-w-md animate-in">
           <div className="mb-8 lg:hidden"><Logo /></div>
           <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>

@@ -8,10 +8,10 @@
 :root {
   --brand: #0f766e;        /* teal: primary buttons, active states (5.5:1 with white text, passes WCAG AA) */
   --brand-strong: #0b5f59; /* teal TEXT and links */
-  --brand-soft: #5eead4;   /* decoration */
-  --brand-tint: #ccfbf1;   /* soft teal backgrounds, badges */
-  --accent: #2dd4bf;       /* turquoise: decoration only */
-  --accent-soft: #cffafe;  /* turquoise tag chips */
+  --brand-soft: #8cc9c0;   /* decoration */
+  --brand-tint: #d9f0ec;   /* soft teal backgrounds, badges */
+  --accent: #7cc4ba;       /* turquoise: decoration only */
+  --accent-soft: #dcf0f2;  /* turquoise tag chips */
   --accent-strong: #155e75;/* text on turquoise chips */
   --pink: #ffd9e3;
   --card-tint: #e3f8f5;    /* turquoise wash at the corner of cards */
@@ -24,23 +24,54 @@
   --line: #d3ebe7;
   --danger: #c8233f;
   --success: #0f7a55;
+
+  /* Event category colours (map pins, filter icons) */
+  --cat-tech: #5b4fc4;
+  --cat-social: #c4587c;
+  --cat-outdoors: #0e8a5f;
+  --cat-arts: #c2410c;
+  --cat-food: #b45309;
+  --cat-sports: #0369a1;
+  --cat-family: #7a52c7;
+  --cat-learning: #4338ca;
+  --cat-wellness: #15803d;
+  --cat-volunteer: #be123c;
   color-scheme: light;
 }
 
 .dark {
-  --brand-strong: #5eead4;
-  --brand-tint: #0f3330;
-  --accent-soft: #0e2f36;
-  --accent-strong: #a5f3fc;
-  --card-tint: #0e2b2a;
-  --bg: #061211;
-  --surface: #0c1c1b;
-  --surface-2: #122826;
-  --fg: #e8f7f5;
-  --muted: #9fbcb8;
-  --line: #1e3a37;
-  --danger: #ff6b85;
-  --success: #4ade80;
+  /* Cool ink neutrals (no green cast), same teal family as light mode, softened for dark backgrounds */
+  --brand: #2b7069;        /* buttons, active tab (5.8:1 with white text) */
+  --brand-hover: #245f59;
+  --brand-strong: #86c2b9; /* teal text and links */
+  --brand-soft: #4a7f79;
+  --brand-tint: #1c3331;   /* selected chips, distance badges */
+  --accent: #6f9e99;
+  --accent-soft: #232c33;  /* tag chips: neutral slate */
+  --accent-strong: #b4c6d0;
+  --card-tint: #191e22;
+
+  --bg: #111518;
+  --surface: #191e22;
+  --surface-2: #21282d;
+  --fg: #e7eaed;
+  --muted: #9aa4ad;
+  --line: #2d353c;
+  --danger: #ec9393;
+  --success: #8fc29c;
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
+
+  /* Muted, earthy category colours: bright ones glare on a dark background */
+  --cat-tech: #3e5c76;
+  --cat-social: #9a4545;
+  --cat-outdoors: #4f6b3a;
+  --cat-arts: #6e4583;
+  --cat-food: #994f20;
+  --cat-sports: #2c6a7a;
+  --cat-family: #85566f;
+  --cat-learning: #4a5577;
+  --cat-wellness: #557560;
+  --cat-volunteer: #a5523a;
   color-scheme: dark;
 }
 
@@ -124,7 +155,7 @@ body {
 .nexus-card::before {
   content: "";
   position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: linear-gradient(90deg, #2dd4bf, #22d3ee, #0f766e);
+  background: linear-gradient(90deg, #7cc4ba, #7fbfcc, #0f766e);
 }
 
 /* Leaflet pins are plain HTML; drop Leaflet's default white box */
@@ -132,7 +163,20 @@ body {
 .leaflet-container { font-family: var(--font-sans); background: var(--surface-2); }
 .leaflet-control-zoom a { color: var(--fg) !important; background: var(--surface) !important; border-color: var(--line) !important; }
 .leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--muted) !important; }
-.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.6); }
+/* Dark map: invert the light tiles, then pull out most colour so it reads as neutral slate, not green */
+.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.85) saturate(0.3); }
+
+/* ---- Dark mode only: flat surfaces instead of the light theme's glows and washes ---- */
+.dark body { background: var(--bg); }
+.dark .btn-primary { background: var(--brand); box-shadow: none; }
+.dark .btn-primary:hover { filter: none; background: var(--brand-hover); }
+.dark .nexus-card { background: var(--surface); box-shadow: var(--shadow); }
+.dark .nexus-card::before { display: none; }
+.dark .brand-gradient { background: var(--brand); }
+/* Category icons in filter chips: lift the muted colours so they read on dark */
+.dark .cat-icon { filter: brightness(1.8) saturate(0.8); }
+/* Avatar circle: soft rose instead of bright pink on dark */
+.dark .bg-pink { background-color: #3a2a30; color: #f0c2cf; }
 .leaflet-control-attribution a { color: var(--brand-strong) !important; }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
