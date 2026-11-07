@@ -49,10 +49,7 @@ export function AppLayout() {
           <p className="hidden text-sm font-bold text-muted md:block">{current?.label}</p>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <div className="text-right leading-tight">
-              <p className="text-sm font-bold">{user?.name}</p>
-              <p className="text-xs text-muted">{user?.email}</p>
-            </div>
+            <p className="text-sm font-bold">{user?.name}</p>
             <span className="grid size-10 place-items-center rounded-full bg-pink font-extrabold text-[#8a1838]" aria-hidden>
               {user?.name?.[0]?.toUpperCase() ?? '?'}
             </span>

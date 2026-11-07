@@ -1,7 +1,7 @@
 // App identity. Also update <title> in index.html and electron/main.cjs if you rename again.
 export const APP = {
   name: 'Nexus',
-  tagline: 'Every flyer on every bulletin board, on one neighbourhood map. Find what is on near you, and someone to go with.',
+  tagline: 'Never miss out. Never go alone.',
   org: 'Code the Change YYC',
 }
 

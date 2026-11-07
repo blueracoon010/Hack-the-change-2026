@@ -1,16 +1,8 @@
 // Split-screen layout for Login / Sign up: brand panel on the left, form on the right.
 import type { ReactNode } from 'react'
-import { Accessibility, Camera, ShieldCheck, Users } from 'lucide-react'
 import { APP } from '../config/app'
 import { Logo } from './Logo'
 import { ThemeToggle } from './ThemeToggle'
-
-const FEATURES = [
-  { icon: Camera, text: 'Snap a community flyer and it lands on the map' },
-  { icon: Users, text: 'Find a neighbour to go with, so nobody shows up alone' },
-  { icon: Accessibility, text: 'Built for everyone: keyboard, screen reader and text size friendly' },
-  { icon: ShieldCheck, text: 'Your data stays yours: export or delete it any time' },
-]
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -21,16 +13,8 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
         <Logo light />
         <div className="relative">
           <h2 className="max-w-md text-4xl font-extrabold leading-tight">{APP.tagline}</h2>
-          <ul className="mt-8 space-y-4">
-            {FEATURES.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-3 text-lg font-semibold text-white/95">
-                <span className="grid size-10 place-items-center rounded-xl bg-white/15" aria-hidden><Icon className="size-5" /></span>
-                {text}
-              </li>
-            ))}
-          </ul>
         </div>
-        <p className="relative text-sm text-white/80">Made in Calgary · {APP.org}</p>
+        <p className="relative text-sm text-white/80">Made in Calgary</p>
       </aside>
 
       <main className="relative flex items-center justify-center p-6 sm:p-12">
