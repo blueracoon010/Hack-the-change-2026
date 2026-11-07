@@ -7,6 +7,7 @@ import asyncio
 import logging
 from datetime import timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, delete, select
 
 from ..config import settings
@@ -57,6 +58,11 @@ async def sync_source(session: Session, source) -> SyncRun:
             row = row or Event(source=e.source, source_id=e.source_id, title=e.title, start=e.start)
             apply(row, e)
             session.add(row)
+            try:
+                session.commit()  # per row: another backend on the shared DB may insert the same event at the same moment
+            except IntegrityError:
+                session.rollback()
+                continue
             run.saved += 1
         run.ok = True
     except Exception as ex:  # one broken source must never break the others
@@ -79,10 +85,25 @@ def prune_past(session: Session) -> None:
         session.commit()
 
 
-async def sync_all() -> list[SyncRun]:
+def synced_recently(session: Session, source_name: str) -> bool:
+    """With a shared database, several teammates' backends run this loop. If any of them synced this source
+    recently, the data is already fresh for everyone, so skip (saves API quota)."""
+    window = timedelta(minutes=max(settings.events_sync_minutes - 1, 1))
+    last = session.exec(select(SyncRun).where(SyncRun.source == source_name, SyncRun.ok == True)  # noqa: E712
+                        .order_by(SyncRun.finished_at.desc())).first()
+    return bool(last and utcnow() - _aware(last.finished_at) < window)
+
+
+def _aware(dt):
+    from .schemas import to_utc
+    return to_utc(dt)
+
+
+async def sync_all(force: bool = False) -> list[SyncRun]:
     async with _running:
         with Session(engine) as session:
-            runs = [await sync_source(session, s) for s in SOURCES if s.configured()]
+            runs = [await sync_source(session, s) for s in SOURCES
+                    if s.configured() and (force or not synced_recently(session, s.NAME))]
             prune_past(session)
             for r in runs:
                 session.refresh(r)

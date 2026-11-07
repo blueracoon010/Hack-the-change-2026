@@ -35,4 +35,6 @@ for r in (auth.router, users.router, energy.router, calgary.router, ml.router, s
 
 @app.get("/api/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "app": settings.app_name}
+    from .db import database_kind
+
+    return {"status": "ok", "app": settings.app_name, "database": database_kind()}

@@ -4,7 +4,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 
-os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mkdtemp()}/events.db"
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{tempfile.mkdtemp()}/events.db")
 os.environ["TICKETMASTER_API_KEY"] = ""
 os.environ["MEETUP_ACCESS_TOKEN"] = ""
 

@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlmodel import Session, delete, func, select, cast, Integer
+from sqlalchemy import Integer, cast
+from sqlmodel import Session, delete, func, select
 
 from ..config import settings
 from ..db import get_session
@@ -219,9 +220,9 @@ def my_events(user: User = Depends(get_current_user), session: Session = Depends
 @router.post("/sync")
 async def sync_now(_: User = Depends(get_current_user)) -> dict:
     """Pull fresh events from every configured source right now (signed-in users only, to protect API quotas)."""
-    runs = await sync_all()
-    if not runs:
+    if not any(s.configured() for s in SOURCES):
         raise HTTPException(400, "No event sources configured. Set TICKETMASTER_API_KEY and/or MEETUP_ACCESS_TOKEN in backend/.env")
+    runs = await sync_all(force=True)
     return {"runs": [r.model_dump(mode="json") for r in runs]}
 
 
