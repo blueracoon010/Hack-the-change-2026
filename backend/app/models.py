@@ -31,6 +31,10 @@ class SocialProfile(SQLModel, table=True):
     instagram: str = ''
     interests_json: str = '[]'
     discoverable: bool = False
+    # "About me" (shown to other members only when discoverable is on)
+    bio: str = ''
+    neighbourhood: str = ''
+    social_style: str = 'A little of both'
 
 
 class BuddyPreference(SQLModel, table=True):

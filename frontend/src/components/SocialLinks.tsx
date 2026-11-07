@@ -5,7 +5,7 @@ import { api } from '../lib/api'
 import { interests } from '../lib/community'
 import { Button, Card, Field, Switch } from './ui'
 
-export type SocialDetails = { instagram: string; interests: string[]; discoverable: boolean; invite_token?: string | null }
+export type SocialDetails = { instagram: string; interests: string[]; discoverable: boolean; invite_token?: string | null; bio?: string; neighbourhood?: string; social_style?: string }
 const empty: SocialDetails = { instagram: '', interests: [], discoverable: false }
 export const socialDemoKey = 'corkboard-social-demo-v1'
 export function readSocialDemo(): SocialDetails {
@@ -29,6 +29,12 @@ export function SocialLinks() {
     request.then(result => { if (active) { setDetails(result); setSaved(result); setLoaded(true) } }).catch(e => { if (active) setError(e.message) })
     return () => { active = false }
   }, [user?.id, ready, retry])
+  // The Profile page saves interests too: reload so this form never overwrites them with stale values.
+  useEffect(() => {
+    const refresh = () => setRetry(v => v + 1)
+    window.addEventListener('corkboard-profile-updated', refresh)
+    return () => window.removeEventListener('corkboard-profile-updated', refresh)
+  }, [])
   const handle = details.instagram.trim().replace(/^@/, '').toLowerCase()
   const valid = !handle || (handle.length <= 30 && /^[a-z0-9_](?:[a-z0-9._]{0,28}[a-z0-9_])?$/.test(handle) && !handle.includes('..'))
   const invite = saved.discoverable && saved.invite_token ? `${window.location.href.split('#')[0]}#/invite/${encodeURIComponent(saved.invite_token)}` : ''

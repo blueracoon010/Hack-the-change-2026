@@ -8,6 +8,7 @@ import { PreferencesProvider } from './context/PreferencesContext'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Invite from './pages/Invite'
+import PersonProfile from './pages/PersonProfile'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth()
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/signup" element={<GuestOnly><Signup /></GuestOnly>} />
             <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
               {NAV.map((n) => <Route key={n.path} path={n.path} element={n.element} />)}
+              <Route path="/people/:id" element={<PersonProfile />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
