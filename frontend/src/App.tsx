@@ -12,10 +12,8 @@ import Invite from './pages/Invite'
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth()
   const location = useLocation()
-  // Local development can browse pages without a backend or saved session.
-  if (import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS !== 'false') return children
   if (!ready) return <Loading label="Starting up" />
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
   return children
 }
 

@@ -1,6 +1,6 @@
 ﻿# Integrated event map
 
-The main route now uses the team's `Explore.tsx` / `NexusMap.tsx`, reading real event data from `GET /api/events`. Profile, Community, Settings, invitations, and development login bypass remain available. The previous `Home.tsx` sample-map implementation is retained but is not routed as the homepage.
+The main route now uses the team's `Explore.tsx` / `NexusMap.tsx`, reading real event data from `GET /api/events`. Profile, Community, Settings, and invitations remain available. Sign-in is required for the app pages. The previous `Home.tsx` sample-map implementation is retained but is not routed as the homepage.
 
 ## Run
 
@@ -15,6 +15,6 @@ Check http://localhost:8000/api/events/status for configured sources and sync re
 
 Google Maps is optional: add `VITE_GOOGLE_MAPS_API_KEY` to `frontend/.env` to use it. Otherwise OpenStreetMap/Leaflet works without a map API key. Internet is required for map tiles.
 
-Map RSVPs/buddy requests use authenticated backend endpoints; browsing needs no login in development. Bookmarks/reminder controls and the people-map previews are still local/demo features. Manage actual followers and following under Profile. Profile/Community logic was preserved during the merge.
+Map RSVPs/buddy requests use authenticated backend endpoints; browsing the app requires login. Bookmarks/reminder controls and the people-map previews are still local/demo features. Manage actual followers and following under Profile. Profile/Community logic was preserved during the merge.
 
 Node 22.12+ is recommended by the current Vite tooling. Backend tests and the production build are the integration checks; live Ticketmaster testing needs a configured key.
