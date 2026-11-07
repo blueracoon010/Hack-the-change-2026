@@ -2,15 +2,17 @@
 // filter events by type and social energy, and open any pin or card for details, RSVP and "find a buddy".
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
-  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Camera, Check, Clock, Footprints, Globe, HandHeart, LocateFixed, MapPin,
-  Search, Ticket, UserPlus, Users, X,
+  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Camera, Check, Clock, ExternalLink, Footprints, Globe, HandHeart, LocateFixed,
+  MapPin, Search, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
 import { Button, cx, Segmented } from '../components/ui'
+import { useApi } from '../hooks/useApi'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
+import { api } from '../lib/api'
 import {
-  CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtWhen, initials, LANGUAGES, SAMPLE_EVENTS, SAMPLE_PEOPLE, VIBES,
-  type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
+  CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtWhen, fromApi, initials, LANGUAGES, SAMPLE_PEOPLE, SOURCE_LABEL, VIBES,
+  type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
 } from '../lib/nexus'
 
 type Mode = 'events' | 'people'
@@ -22,6 +24,8 @@ const ALL_CATS = Object.keys(CATEGORIES) as Category[]
 
 /** "Hillhurst Sunnyside Community Association" → "Hillhurst Sunnyside" */
 const neighbourhoodOf = (host: string) => host.replace(/\s+(Creekside\s+)?(Community|Communities|Neighbourhoods?)\s+Association$/i, '')
+/** Ticketmaster / Meetup hosts are promoters, so show the venue; flyers show the neighbourhood. */
+const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : neighbourhoodOf(e.host))
 
 export default function Explore() {
   const [mode, setMode] = useState<Mode>('events')
@@ -39,13 +43,48 @@ export default function Explore() {
   const [scanOpen, setScanOpen] = useState(false)
   const sideRef = useRef<HTMLDivElement>(null)
 
-  // Per-user actions. Local for now; POST to the backend once the routes exist.
+  // Live events from the backend (Ticketmaster, Meetup, community posts). Refreshes every 5 minutes.
+  const { data: apiEvents, error: eventsError, loading: eventsLoading, reload: reloadEvents } =
+    useApi<ApiEvent[]>('/api/events?limit=500', { refreshMs: 5 * 60_000 })
+  const allEvents = useMemo(() => (apiEvents ?? []).map(fromApi), [apiEvents])
+
+  // Per-user actions. RSVP and "find a buddy" are saved to the backend; saved/reminders are local for now.
   const [rsvps, setRsvps] = useState<Set<string>>(new Set())
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [buddyAsks, setBuddyAsks] = useState<Set<string>>(new Set())
   const [reminders, setReminders] = useState<Set<string>>(new Set())
   const toggle = (set: SetToggle, id: string) =>
     set((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const setHas = (set: SetToggle, id: string, on: boolean) =>
+    set((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n })
+
+  // Take my RSVPs from the server whenever events load.
+  useEffect(() => {
+    if (!apiEvents) return
+    const ids = new Set(apiEvents.map((e) => e.id))
+    setRsvps(new Set(apiEvents.filter((e) => e.meGoing).map((e) => e.id)))
+    setBuddyAsks((prev) => new Set([...[...prev].filter((id) => !ids.has(id)), ...apiEvents.filter((e) => e.meLookingForBuddy).map((e) => e.id)]))
+  }, [apiEvents])
+
+  async function saveRsvp(id: string, going: boolean, buddy: boolean) {
+    try {
+      await api(`/api/events/${id}/rsvp`, going ? { method: 'PUT', body: { lookingForBuddy: buddy } } : { method: 'DELETE' })
+    } finally {
+      reloadEvents() // real going / buddy counts
+    }
+  }
+  const rsvpEvent = (id: string) => {
+    const going = !rsvps.has(id)
+    setHas(setRsvps, id, going)
+    if (!going) setHas(setBuddyAsks, id, false)
+    void saveRsvp(id, going, going && buddyAsks.has(id))
+  }
+  const buddyEvent = (id: string) => {
+    const buddy = !buddyAsks.has(id)
+    setHas(setBuddyAsks, id, buddy)
+    if (buddy) setHas(setRsvps, id, true) // asking for a buddy means you're going
+    void saveRsvp(id, buddy || rsvps.has(id), buddy)
+  }
 
   const origin = userPos ?? CALGARY_CENTER
   const q = query.trim().toLowerCase()
@@ -53,14 +92,14 @@ export default function Explore() {
   const events = useMemo(() => {
     const now = new Date()
     const weekOut = new Date(now); weekOut.setDate(now.getDate() + 7)
-    return SAMPLE_EVENTS
+    return allEvents
       .filter((e) => cats.size === 0 || e.categories.some((c) => cats.has(c)))
       .filter((e) => vibe === 'all' || e.vibe === vibe)
       .filter((e) => when === 'all' || (when === 'today' ? e.start.toDateString() === now.toDateString() : e.start <= weekOut))
       .filter((e) => !q || [e.title, e.host, e.venue, e.description].some((s) => s.toLowerCase().includes(q)))
       .map((e) => ({ ...e, km: distanceKm(origin, e.position) }))
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
-  }, [cats, vibe, when, q, origin, sort])
+  }, [allEvents, cats, vibe, when, q, origin, sort])
 
   const people = useMemo(() => SAMPLE_PEOPLE
     .filter((p) => relation === 'all' || p.relation === relation)
@@ -69,14 +108,14 @@ export default function Explore() {
     .map((p) => ({ ...p, km: distanceKm(origin, p.position) }))
     .sort((a, b) => a.km - b.km), [relation, buddyOnly, q, origin])
 
-  const selectedEvent = selected?.kind === 'event' ? SAMPLE_EVENTS.find((e) => e.id === selected.id) ?? null : null
+  const selectedEvent = selected?.kind === 'event' ? allEvents.find((e) => e.id === selected.id) ?? null : null
   const selectedPerson = selected?.kind === 'person' ? SAMPLE_PEOPLE.find((p) => p.id === selected.id) ?? null : null
 
   // People mode: show the events your people are going to; highlight the selected person's.
   const peopleEvents = useMemo(() => {
     const ids = new Set(people.flatMap((p) => p.goingTo))
-    return SAMPLE_EVENTS.filter((e) => ids.has(e.id))
-  }, [people])
+    return allEvents.filter((e) => ids.has(e.id))
+  }, [allEvents, people])
   const highlight = useMemo(() => {
     if (mode !== 'people') return undefined
     if (selectedPerson) return new Set(selectedPerson.goingTo)
@@ -232,14 +271,14 @@ export default function Explore() {
           <div ref={sideRef} className="flex scroll-mt-4 flex-col lg:min-h-0">
             {selectedEvent ? (
               <EventDetail event={selectedEvent} km={distanceKm(origin, selectedEvent.position)} onClose={() => setSelected(null)}
-                going={rsvps.has(selectedEvent.id)} onRsvp={() => toggle(setRsvps, selectedEvent.id)}
-                buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => toggle(setBuddyAsks, selectedEvent.id)}
+                going={rsvps.has(selectedEvent.id)} onRsvp={() => rsvpEvent(selectedEvent.id)}
+                buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => buddyEvent(selectedEvent.id)}
                 reminder={reminders.has(selectedEvent.id)} onReminder={() => toggle(setReminders, selectedEvent.id)}
                 saved={saved.has(selectedEvent.id)} onSave={() => toggle(setSaved, selectedEvent.id)}
                 backLabel={mode === 'events' ? 'All events' : 'All people'}
                 onPerson={(p) => { setMode('people'); select({ kind: 'person', id: p.id }, p.position) }} />
             ) : selectedPerson ? (
-              <PersonDetail person={selectedPerson} km={distanceKm(origin, selectedPerson.position)} onClose={() => setSelected(null)}
+              <PersonDetail person={selectedPerson} events={allEvents} km={distanceKm(origin, selectedPerson.position)} onClose={() => setSelected(null)}
                 asked={buddyAsks.has(selectedPerson.id)} onAsk={() => toggle(setBuddyAsks, selectedPerson.id)}
                 onEvent={(e) => select({ kind: 'event', id: e.id }, e.position)} />
             ) : (
@@ -267,9 +306,16 @@ export default function Explore() {
                     </li>
                   ))}
                   {count === 0 && (
-                    <li className="rounded-3xl border border-dashed border-line px-4 py-12 text-center text-muted">
-                      Nothing matches yet.
-                      {mode === 'events' && filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}
+                    <li className="rounded-3xl border border-dashed border-line px-4 py-12 text-center text-muted" role={mode === 'events' && eventsError ? 'alert' : undefined}>
+                      {mode === 'events' && eventsError && !apiEvents ? (
+                        <>Couldn’t load events. {eventsError.message}
+                          <button type="button" onClick={reloadEvents} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Try again</button></>
+                      ) : mode === 'events' && eventsLoading && !apiEvents ? (
+                        'Finding events near you…'
+                      ) : (
+                        <>Nothing matches yet.
+                          {mode === 'events' && filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
+                      )}
                     </li>
                   )}
                 </ul>
@@ -336,7 +382,7 @@ function EventCard({ event: e, km, going, saved, onSave, onView }: {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-muted">
-            <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{neighbourhoodOf(e.host)}</span>
+            <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{placeOf(e)}</span>
             <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden />{fmtWhen(e.start)}</span>
             <span className="inline-flex items-center gap-1"><Ticket className="size-3.5" aria-hidden />{e.cost}</span>
           </p>
@@ -458,7 +504,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
         </div>
       )}
 
-      <p className="mt-5 leading-relaxed">{e.description}</p>
+      {e.description && <p className="mt-5 leading-relaxed">{e.description}</p>}
 
       <div className="mt-5 rounded-2xl border border-line bg-surface p-4">
         <p className="flex items-center gap-2 font-bold"><Footprints className="size-4.5 text-brand-strong" aria-hidden />
@@ -491,6 +537,13 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-2.5 font-bold text-muted hover:bg-surface-2 hover:text-fg">
           {reminder ? <><BellRing className="size-4 text-brand-strong" aria-hidden /> Reminder set, with forecast</> : <><Bell className="size-4" aria-hidden /> Remind me the day before</>}
         </button>
+        {e.url && e.source && (
+          <a href={e.url} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-5 py-2.5 font-bold transition hover:bg-surface-2">
+            <Ticket className="size-4" aria-hidden /> {e.source === 'community' ? 'Event page' : `Tickets on ${SOURCE_LABEL[e.source]}`}
+            <ExternalLink className="size-3.5" aria-hidden /><span className="sr-only">(opens in your browser)</span>
+          </a>
+        )}
       </div>
 
       <div className="mt-6 flex items-center gap-2 border-t border-line pt-5 text-sm">
@@ -506,15 +559,17 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
           {e.languages.includes(lang) && ' The host also speaks this language.'}</p>
       )}
       <p className="mt-3 text-xs text-muted">Hosts speak: {e.languages.join(', ')}</p>
-      <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Camera className="size-3.5" aria-hidden /> From a flyer at {e.scannedFrom}</p>
+      {e.source && e.source !== 'community'
+        ? <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Globe className="size-3.5" aria-hidden /> Live listing from {SOURCE_LABEL[e.source]}</p>
+        : <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Camera className="size-3.5" aria-hidden /> From a flyer at {e.scannedFrom}</p>}
     </DetailCard>
   )
 }
 
-function PersonDetail({ person: p, km, onClose, asked, onAsk, onEvent }: {
-  person: Person; km: number; onClose: () => void; asked: boolean; onAsk: () => void; onEvent: (e: NexusEvent) => void
+function PersonDetail({ person: p, events, km, onClose, asked, onAsk, onEvent }: {
+  person: Person; events: NexusEvent[]; km: number; onClose: () => void; asked: boolean; onAsk: () => void; onEvent: (e: NexusEvent) => void
 }) {
-  const going = SAMPLE_EVENTS.filter((e) => p.goingTo.includes(e.id))
+  const going = events.filter((e) => p.goingTo.includes(e.id))
   return (
     <DetailCard label={`Profile: ${p.name}`} backLabel="All people" onClose={onClose}>
       <div className="flex items-center gap-4">
@@ -541,7 +596,7 @@ function PersonDetail({ person: p, km, onClose, asked, onAsk, onEvent }: {
           <li key={e.id}>
             <button type="button" onClick={() => onEvent(e)} className="w-full rounded-2xl border border-line bg-surface p-3 text-left transition hover:border-brand/50">
               <span className="block font-bold leading-snug">{e.title}</span>
-              <span className="text-sm text-muted">{fmtWhen(e.start)} · {neighbourhoodOf(e.host)}</span>
+              <span className="text-sm text-muted">{fmtWhen(e.start)} · {placeOf(e)}</span>
             </button>
           </li>
         ))}

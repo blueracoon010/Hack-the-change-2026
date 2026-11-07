@@ -113,6 +113,7 @@ class EventOut(Camel):
     is_online: bool
     distance_km: float | None = None  # when the request passed lat & lng
     me_going: bool = False  # signed-in user has RSVP'd
+    me_looking_for_buddy: bool = False  # ...and asked for a buddy
     mine: bool = False  # signed-in user posted it
 
 

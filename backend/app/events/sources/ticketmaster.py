@@ -57,7 +57,10 @@ def parse(ev: dict) -> EventIn | None:
     raw_category = " / ".join(l for l in labels if l and l != "Undefined") or None
     images = sorted(ev.get("images") or [], key=lambda i: i.get("width", 0), reverse=True)
     pr = (ev.get("priceRanges") or [None])[0]
-    price = f'${pr["min"]:.0f}-${pr["max"]:.0f} {pr.get("currency", "")}'.strip() if pr and "min" in pr and "max" in pr else None
+    price = None
+    if pr and "min" in pr and "max" in pr:
+        span = f'${pr["min"]:.0f}' if round(pr["min"]) == round(pr["max"]) else f'${pr["min"]:.0f}–${pr["max"]:.0f}'
+        price = f'{span} {pr.get("currency", "")}'.strip()
     return EventIn(
         source=NAME,
         source_id=ev["id"],

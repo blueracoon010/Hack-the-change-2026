@@ -1,6 +1,6 @@
 // Nexus domain types, filter metadata and sample data.
-// The sample data stands in for what the flyer-scanning AI will produce. Swap `SAMPLE_EVENTS` / `SAMPLE_PEOPLE`
-// for API calls (e.g. useApi<NexusEvent[]>('/api/events')) once the backend routes exist.
+// Events are LIVE from the backend (GET /api/events, see backend/app/events/README.md) via `fromApi` below.
+// SAMPLE_PEOPLE is still sample data until the people/connections routes exist.
 import type { LucideIcon } from 'lucide-react'
 import { Cpu, Dumbbell, HeartHandshake, Palette, Soup, Sprout, Trees, Users, Baby, GraduationCap } from 'lucide-react'
 
@@ -28,6 +28,32 @@ export type NexusEvent = {
   languages: string[] // languages the flyer / host supports
   description: string
   scannedFrom: string // where the flyer was photographed
+  // Set for live events from the backend:
+  source?: 'ticketmaster' | 'meetup' | 'community'
+  url?: string | null // tickets / RSVP on the source site
+  imageUrl?: string | null
+  meGoing?: boolean
+  meLookingForBuddy?: boolean
+}
+
+/** One event as GET /api/events returns it (dates are ISO strings). */
+export type ApiEvent = Omit<NexusEvent, 'start' | 'categories'> & {
+  start: string
+  end: string | null
+  categories: string[]
+  isOnline: boolean
+  distanceKm: number | null
+  mine: boolean
+}
+
+/** API event -> NexusEvent (parses the date, drops categories the UI doesn't know). */
+export function fromApi(e: ApiEvent): NexusEvent {
+  return { ...e, start: new Date(e.start), categories: e.categories.filter((c): c is Category => c in CATEGORIES) }
+}
+
+/** Where a live event came from, for the "Listed on …" credit. */
+export const SOURCE_LABEL: Record<NonNullable<NexusEvent['source']>, string> = {
+  ticketmaster: 'Ticketmaster', meetup: 'Meetup', community: 'Nexus community',
 }
 
 export type Relation = 'following' | 'connection'
