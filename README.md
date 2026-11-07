@@ -1,51 +1,137 @@
-# Project Spark: Code the Change YYC boilerplate
+# Nexus
 
-A working desktop app built ahead of time so hackathon day goes to **the idea**, not setup. It includes login/signup, an icon sidebar, dark mode, accessibility settings, live **AESO** energy data, **City of Calgary** open data, an **ML forecast**, and an **AWS** deploy script.
+**Never miss out. Never go alone.**
 
-| Folder | What it is | Owner on the day |
-|---|---|---|
-| [`frontend/`](frontend/README.md) | Electron + React desktop app (all UI) | UI / design person |
-| [`backend/`](backend/README.md) | FastAPI API: auth, privacy, AESO + Calgary data | Backend person |
-| [`ml/`](ml/README.md) | Trains models on real AESO data | Data / ML person |
-| [`cloud/`](cloud/README.md) | Docker + AWS Lightsail deploy | Whoever finishes first |
+Nexus is a community-events app for Calgary, built for Code the Change YYC 2026.
 
-## Run it (2 terminals)
+## The problem
+
+- **Events get missed.** A lot of what's happening in a neighbourhood only lives on paper flyers, on café corkboards and library walls. If you don't walk past at the right time, you never hear about it.
+- **Going alone is a barrier.** Even when people find something they'd enjoy, showing up by yourself is hard, so many people stay home.
+
+## What Nexus does
+
+| | |
+|---|---|
+| **Map of what's on** | The home screen is a map of Calgary events: live listings from Ticketmaster plus events people create in Nexus. Filter by type (tech, social, outdoorsy, arts, food…), introvert or extrovert vibe, date and distance. |
+| **My people** | Switch the map to see the people you follow and which events they're going to. |
+| **Create events** | Host your own event with From and To dates and a place on the map. Make it **public** (everyone) or **friends only** (people you follow who follow you back). Manage them in *Profile → My events*. |
+| **Go together** | RSVP and say you're looking for a buddy, so nobody has to go alone. |
+| **Calendar** | Your RSVPs in a calendar, with "Add to Google Calendar" and iCalendar export. |
+| **Weather-aware** | Event details show the Calgary forecast for that day. |
+| **Communities** | Join interest groups (walking, books, art, coffee) and chat in their channels. |
+| **Profiles & invites** | Public or private profile, interests, invite friends with a code or link. |
+| **Accessible** | Light and dark mode, text size, high contrast, reduced motion, keyboard navigation and screen-reader labels. |
+
+**Still in progress:** *Scan a flyer* (photo → events on the map) and *AI translation* of event details have their screens built, but they aren't connected to a backend yet.
+
+## How it's built
+
+| Folder | What it is |
+|---|---|
+| [`frontend/`](frontend/README.md) | React 19 + TypeScript + Vite + Tailwind. Runs in the browser or as an Electron desktop app. Maps use OpenStreetMap (Leaflet), or Google Maps if you add a key. |
+| [`backend/`](backend/README.md) | FastAPI + SQLModel API: accounts, events, RSVPs, follows, communities. Uses SQLite by default or a shared Postgres database. |
+| [`backend/app/events/`](backend/app/events/README.md) | Event sync from Ticketmaster, geocoding, and the events API. |
+| [`cloud/`](cloud/README.md) | Docker and AWS deployment, plus the shared team database. |
+| [`ml/`](ml/README.md) | Model training left over from the starter template. |
+
+---
+
+## Run it locally
+
+You run two things, each in its own terminal: the **backend** (API on http://localhost:8000) and the **frontend** (app on http://localhost:5173).
+
+### What you need
+
+- **Python 3.12 or newer**: [python.org/downloads](https://www.python.org/downloads/)
+- **Node.js 22.12 or newer** (the LTS version is fine): [nodejs.org](https://nodejs.org/)
+- **Git**
+
+Check what you have:
 
 ```bash
-# Terminal 1: backend  (http://localhost:8000/docs for the interactive API docs)
-cd backend && python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-ml.txt
+python3 --version   # Windows: python --version
+node --version
+```
+
+### 1. Get the code
+
+```bash
+git clone <this repo's URL>
+cd Hack-the-change-2026
+```
+
+### 2. Configure (once)
+
+Copy the example settings files. Every value has a working default for local development.
+
+**macOS / Linux**
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+**Windows (PowerShell)**
+
+```powershell
+Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
+```
+
+Set in `backend/.env`:
+
+- `TICKETMASTER_API_KEY`: a free key from [developer.ticketmaster.com](https://developer.ticketmaster.com). Without it, the map only shows events created in Nexus.
+- `DATABASE_URL` and `JWT_SECRET`: leave these alone to use a local SQLite file (`backend/app.db`) that only you can see. To share users and events with the team, paste the values from the team's shared database settings (see [cloud/README.md](cloud/README.md)). Never commit `.env` files.
+
+### 3. Start the backend (terminal 1)
+
+**macOS / Linux**
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload
-
-# Terminal 2: desktop app
-cd frontend && npm install
-npm run desktop        # Electron window with hot reload   (or: npm run dev → browser at localhost:5173)
 ```
 
-## How it maps to the judging criteria
+**Windows (PowerShell)**
 
-| Criterion | Already in the boilerplate | Your job on the day |
-|---|---|---|
-| **Voltex: real energy data** | Live AESO grid data (load, fuel mix, pool price, AESO forecast) with **no API key**, plus ML trained on a year of real AESO history. Every chart cites its source. | Make the data *central* to your idea and turn it into a clear benefit for people. |
-| **Clio: accessibility & privacy** | Keyboard navigation, skip link, visible focus, screen-reader labels, "view as table" for every chart, text size, high contrast, reduced motion, dark mode, data export, account deletion, hashed passwords, Canadian AWS region. | Keep using the shared components and labels; mention all of this in the demo. |
-| **Benevity: Calgary impact** | Calgary Open Data client (any dataset) with a City solar example. | Pick a real Calgary problem and its dataset at [data.calgary.ca](https://data.calgary.ca). |
-| **Technical execution** | Typed frontend, tested API, cached external calls, ML with honest metrics vs a baseline. | Don't break it, and keep the demo path working. |
-| **UX & design** | Code the Change brand palette, consistent components, polished auth and dashboard. | Rename it and retheme (`frontend/src/index.css` + `frontend/src/config/app.ts`). |
-| **Feasibility & scalability** | Dockerized, one-command deploy, SQLite to Postgres via one env var. | Mention the cost (about $7/month) and the path to scale in your pitch. |
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+The API is up when you see `Uvicorn running on http://127.0.0.1:8000`. Interactive API docs: http://localhost:8000/docs.
 
-## Day-of checklist
-1. Rename the app in `frontend/src/config/app.ts`, `frontend/index.html` and `frontend/electron/main.cjs`.
-2. Retheme by editing the tokens at the top of `frontend/src/index.css`.
-3. Add pages with one line each in `frontend/src/config/nav.tsx`.
-4. Add API routes in `backend/app/routers/`, and tables in `backend/app/models.py`.
+Next time you only need to activate the environment (`source .venv/bin/activate` or `.\.venv\Scripts\Activate.ps1`) and run `uvicorn app.main:app --reload`.
 
-## Moving this into a new repo on hackathon day
+### 4. Start the frontend (terminal 2)
+
+Same on every OS:
+
 ```bash
-# Keep history: create an EMPTY repo on GitHub first, then
-git remote add hackathon https://github.com/<you>/<new-repo>.git
-git push hackathon main
-
-# OR start fresh with one commit (no prep-day history)
-rm -rf .git && git init && git add . && git commit -m "Initial commit from boilerplate"
-git remote add origin https://github.com/<you>/<new-repo>.git && git push -u origin main
+cd frontend
+npm install
+npm run dev
 ```
+
+Open http://localhost:5173 and create an account.
+
+Prefer a desktop window? Run `npm run desktop` instead of `npm run dev` to open it in Electron (with hot reload).
+
+### Handy commands
+
+| Where | Command | What it does |
+|---|---|---|
+| `backend/` | `pytest` | Runs the API tests |
+| `frontend/` | `npm run typecheck` | Checks the TypeScript |
+| `frontend/` | `npm run build` | Production build into `frontend/dist` |
+| `frontend/` | `npm run desktop:prod` | Builds and opens the desktop app |
+
+## Deploying
+
+See [cloud/README.md](cloud/README.md) for Docker and AWS (Lightsail, Canadian region), and [cloud/SHARED-DEPLOYMENT.md](cloud/SHARED-DEPLOYMENT.md) for the shared team setup.
