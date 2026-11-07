@@ -34,6 +34,7 @@ class Event(SQLModel, table=True):
     price: str | None = None  # free text, e.g. "Free" or "$25-$60 CAD"
     is_online: bool = False
     created_by: int | None = Field(default=None, foreign_key="user.id", index=True)  # community events only
+    visibility: str = Field(default="public", index=True)  # "public" | "private" (private = friends only: mutual follows)
     fetched_at: datetime = Field(default_factory=utcnow)
 
 

@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
   ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Camera, Check, Clock, ExternalLink, Footprints, Globe, HandHeart, LocateFixed,
-  MapPin, Search, Ticket, UserPlus, Users, X,
+  Lock, MapPin, Search, Sparkles, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
 import { Button, cx, Segmented } from '../components/ui'
 import { useApi } from '../hooks/useApi'
@@ -25,7 +26,7 @@ const ALL_CATS = Object.keys(CATEGORIES) as Category[]
 /** "Hillhurst Sunnyside Community Association" → "Hillhurst Sunnyside" */
 const neighbourhoodOf = (host: string) => host.replace(/\s+(Creekside\s+)?(Community|Communities|Neighbourhoods?)\s+Association$/i, '')
 /** Ticketmaster / Meetup hosts are promoters, so show the venue; flyers show the neighbourhood. */
-const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : neighbourhoodOf(e.host))
+const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : e.venue || neighbourhoodOf(e.host))
 
 export default function Explore() {
   const [mode, setMode] = useState<Mode>('events')
@@ -140,6 +141,19 @@ export default function Explore() {
       { enableHighAccuracy: false, timeout: 8000 },
     )
   }
+
+  // Coming from "Create event": clear filters so the new event is visible, then open it on the map.
+  const location = useLocation()
+  const navigate = useNavigate()
+  const focusEventId = (location.state as { focusEventId?: string } | null)?.focusEventId
+  useEffect(() => {
+    if (!focusEventId) return
+    const ev = allEvents.find((e) => e.id === focusEventId)
+    if (!ev) return
+    setMode('events'); setQuery(''); setCats(new Set()); setVibe('all'); setWhen('all')
+    select({ kind: 'event', id: ev.id }, ev.position)
+    navigate('.', { replace: true, state: null })
+  }, [focusEventId, allEvents]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week'
   const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week') }
@@ -351,6 +365,17 @@ function Tag({ children }: { children: ReactNode }) {
   return <span className="rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent-strong">{children}</span>
 }
 
+/** "Your event" and "Friends only" markers for events people create in Nexus. */
+function OwnerBadges({ event: e }: { event: NexusEvent }) {
+  if (!e.mine && e.visibility !== 'private') return null
+  return (
+    <>
+      {e.mine && <span className="inline-flex items-center gap-1 rounded-full bg-brand px-3 py-1 text-sm font-semibold text-white"><Sparkles className="size-3.5" aria-hidden />Your event</span>}
+      {e.visibility === 'private' && <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-3 py-1 text-sm font-semibold text-fg"><Lock className="size-3.5" aria-hidden />Friends only</span>}
+    </>
+  )
+}
+
 function VibeTag({ vibe }: { vibe: Vibe }) {
   return <span title={VIBES[vibe].hint} className="rounded-full bg-brand-tint px-3 py-1 text-sm font-semibold text-brand-strong">{VIBES[vibe].label}</span>
 }
@@ -394,6 +419,7 @@ function EventCard({ event: e, km, going, saved, onSave, onView }: {
         <DistanceBadge km={km} />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
+        <OwnerBadges event={e} />
         {e.categories.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
         <VibeTag vibe={e.vibe} />
       </div>
@@ -481,6 +507,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
         <SaveButton saved={saved} onSave={onSave} label={e.title} />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
+        <OwnerBadges event={e} />
         {e.categories.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
         <VibeTag vibe={e.vibe} />
       </div>

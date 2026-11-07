@@ -8,6 +8,7 @@ from pydantic.alias_generators import to_camel
 
 Category = Literal["tech", "social", "outdoors", "arts", "food", "sports", "family", "learning", "wellness", "volunteer"]
 Vibe = Literal["introvert", "extrovert", "either"]
+Visibility = Literal["public", "private"]
 
 
 def to_utc(dt: datetime) -> datetime:
@@ -79,6 +80,7 @@ class CommunityEventIn(Camel):
     description: str | None = Field(default=None, max_length=2000)
     scanned_from: str | None = Field(default=None, max_length=120)
     url: str | None = Field(default=None, max_length=500)
+    visibility: Visibility = "public"  # private = only your friends (people you follow who follow you back)
 
     @field_validator("start")
     @classmethod
@@ -115,6 +117,7 @@ class EventOut(Camel):
     me_going: bool = False  # signed-in user has RSVP'd
     me_looking_for_buddy: bool = False  # ...and asked for a buddy
     mine: bool = False  # signed-in user posted it
+    visibility: str = "public"  # public | private (friends only)
 
 
 class RsvpIn(Camel):

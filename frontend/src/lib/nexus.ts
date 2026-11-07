@@ -34,7 +34,12 @@ export type NexusEvent = {
   imageUrl?: string | null
   meGoing?: boolean
   meLookingForBuddy?: boolean
+  mine?: boolean // you created it
+  visibility?: Visibility
 }
+
+/** public = everyone; private = friends only (people you follow who follow you back). */
+export type Visibility = 'public' | 'private'
 
 /** One event as GET /api/events returns it (dates are ISO strings). */
 export type ApiEvent = Omit<NexusEvent, 'start' | 'categories'> & {
@@ -121,6 +126,27 @@ export const calgaryDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone:
 export const fmtTime = (d: Date) => d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: TIME_ZONE })
 
 const sameDay = (a: Date, b: Date) => calgaryDay(a) === calgaryDay(b)
+
+const calgaryParts = (d: Date) => Object.fromEntries(
+  new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    .formatToParts(d).map((p) => [p.type, p.value]),
+)
+
+/** Date -> "2026-11-08T18:00" in Calgary time, for <input type="datetime-local">. */
+export function toCalgaryInput(d: Date) {
+  const p = calgaryParts(d)
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`
+}
+
+/** "2026-11-08T18:00" typed as Calgary time -> the real instant, whatever time zone this laptop is set to. */
+export function fromCalgaryInput(value: string): Date {
+  const [day, time] = value.split('T')
+  const [y, m, d] = day.split('-').map(Number)
+  const [hh, mm] = time.split(':').map(Number)
+  const wall = Date.UTC(y, m - 1, d, hh, mm)
+  const offset = (ts: number) => { const p = calgaryParts(new Date(ts)); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - ts }
+  return new Date(wall - offset(wall - offset(wall))) // twice, so daylight-saving changeovers land right
+}
 
 export function fmtWhen(d: Date, now = new Date()) {
   const time = fmtTime(d)

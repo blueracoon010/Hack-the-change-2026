@@ -11,7 +11,7 @@ from sqlmodel import Session, delete, func, select, cast, Integer
 
 from ..config import settings
 from ..db import get_session
-from ..models import User
+from ..models import Follow, User
 from ..security import get_current_user
 from .geocode import geocode
 from .models import Event, EventRsvp, SyncRun, utcnow
@@ -35,6 +35,26 @@ def optional_user_id(creds: HTTPAuthorizationCredentials | None = Depends(_beare
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None
+
+
+def friend_ids(session: Session, user_id: int) -> set[int]:
+    """Friends = mutual follows. Following someone alone is not enough to see their private events."""
+    following = set(session.exec(select(Follow.following_id).where(Follow.follower_id == user_id)).all())
+    followers = set(session.exec(select(Follow.follower_id).where(Follow.following_id == user_id)).all())
+    return following & followers
+
+
+def visible_to(user_id: int | None, session: Session):
+    """SQL condition: public events, plus private events by you or your friends."""
+    if user_id is None:
+        return Event.visibility == "public"
+    return (Event.visibility == "public") | Event.created_by.in_(friend_ids(session, user_id) | {user_id})
+
+
+def can_see(e: Event, user_id: int | None, session: Session) -> bool:
+    if e.visibility == "public":
+        return True
+    return user_id is not None and (e.created_by == user_id or e.created_by in friend_ids(session, user_id))
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -75,6 +95,7 @@ def to_out(e: Event, counts: dict[int, tuple[int, int]], mine_rsvp: dict[int, bo
         me_going=e.id in mine_rsvp,
         me_looking_for_buddy=mine_rsvp.get(e.id, False),
         mine=user_id is not None and e.created_by == user_id,
+        visibility=e.visibility,
     )
 
 
@@ -107,7 +128,7 @@ def list_events(
 ) -> list[EventOut]:
     t0 = to_utc(start) if start else utcnow() - timedelta(hours=3)  # keep events that started recently
     t1 = to_utc(end) if end else t0 + timedelta(days=settings.events_days_ahead)
-    stmt = select(Event).where(Event.start >= t0, Event.start <= t1)
+    stmt = select(Event).where(Event.start >= t0, Event.start <= t1, visible_to(user_id, session))
     if not include_online:
         stmt = stmt.where(Event.is_online == False, Event.lat.is_not(None))  # noqa: E712
     if bbox:
@@ -186,6 +207,15 @@ def sources_status(session: Session = Depends(get_session)) -> dict:
     }
 
 
+@router.get("/mine", response_model=list[EventOut], response_model_by_alias=True)
+def my_events(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> list[EventOut]:
+    """Every event you created, past and upcoming (newest first), public and private."""
+    rows = session.exec(select(Event).where(Event.created_by == user.id).order_by(Event.start.desc(), Event.id.desc())).all()
+    mine = dict(session.exec(select(EventRsvp.event_id, EventRsvp.looking_for_buddy).where(EventRsvp.user_id == user.id)).all())
+    counts = rsvp_counts(session, [r.id for r in rows])
+    return [to_out(r, counts, mine, user.id, None) for r in rows]
+
+
 @router.post("/sync")
 async def sync_now(_: User = Depends(get_current_user)) -> dict:
     """Pull fresh events from every configured source right now (signed-in users only, to protect API quotas)."""
@@ -198,7 +228,7 @@ async def sync_now(_: User = Depends(get_current_user)) -> dict:
 @router.get("/{event_id}", response_model=EventOut, response_model_by_alias=True)
 def get_event(event_id: int, user_id: int | None = Depends(optional_user_id), session: Session = Depends(get_session)) -> EventOut:
     e = session.get(Event, event_id)
-    if not e:
+    if not e or not can_see(e, user_id, session):
         raise HTTPException(404, "Event not found")
     r = session.get(EventRsvp, (event_id, user_id)) if user_id else None
     return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy} if r else {}, user_id, None)
@@ -230,6 +260,7 @@ async def create_event(body: CommunityEventIn, user: User = Depends(get_current_
         end=body.start + timedelta(minutes=body.duration_min) if body.duration_min else None,
         venue_name=body.venue, address=body.address, lat=lat, lon=lon,
         url=body.url, price=body.cost, scanned_from=body.scanned_from, created_by=user.id,
+        visibility=body.visibility,
     )
     session.add(e)
     session.commit()
@@ -252,7 +283,7 @@ def delete_event(event_id: int, user: User = Depends(get_current_user), session:
 def rsvp(event_id: int, body: RsvpIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> EventOut:
     """Mark yourself going (optionally looking for a buddy). Call again to change the buddy flag."""
     e = session.get(Event, event_id)
-    if not e:
+    if not e or not can_see(e, user.id, session):
         raise HTTPException(404, "Event not found")
     r = session.get(EventRsvp, (event_id, user.id)) or EventRsvp(event_id=event_id, user_id=user.id)
     r.looking_for_buddy = body.looking_for_buddy
@@ -264,7 +295,7 @@ def rsvp(event_id: int, body: RsvpIn, user: User = Depends(get_current_user), se
 @router.delete("/{event_id}/rsvp", response_model=EventOut, response_model_by_alias=True)
 def cancel_rsvp(event_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> EventOut:
     e = session.get(Event, event_id)
-    if not e:
+    if not e or not can_see(e, user.id, session):
         raise HTTPException(404, "Event not found")
     r = session.get(EventRsvp, (event_id, user.id))
     if r:

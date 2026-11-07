@@ -1,14 +1,16 @@
 ﻿import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Users, Check, Pencil, Heart, Link2, ArrowUpRight, Coffee, BookOpen, Music, Palette, Footprints, Trophy } from 'lucide-react'
+import { MapPin, Users, Check, Pencil, Heart, Link2, ArrowUpRight, Coffee, BookOpen, Music, Palette, Footprints, Trophy, CalendarDays } from 'lucide-react'
 import { Button, Card, Field } from '../components/ui'
 import { groups, interests, useCommunityState } from '../lib/community'
 import { ConnectionsPanel } from '../components/ConnectionsPanel'
 import { SocialLinks } from '../components/SocialLinks'
+import { MyEvents } from '../components/MyEvents'
 
 const interestIcons = [Footprints, BookOpen, Palette, Music, Trophy, Coffee]
 const sections = [
   { id: 'about', label: 'About me', icon: Heart },
+  { id: 'events', label: 'My events', icon: CalendarDays },
   { id: 'connections', label: 'Connections', icon: Users },
   { id: 'social', label: 'Social & invites', icon: Link2 },
 ] as const
@@ -18,7 +20,7 @@ export default function Profile() {
   const [draft, setDraft] = useState(data.profile)
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [section, setSection] = useState<'about' | 'connections' | 'social'>('about')
+  const [section, setSection] = useState<(typeof sections)[number]['id']>('about')
   const joined = groups.filter(g => data.joined.includes(g.id))
   function edit() { setDraft(data.profile); setEditing(true); setSection('about'); setSaved(false) }
   function save(e: FormEvent) {
@@ -38,6 +40,7 @@ export default function Profile() {
     </header>
     <div role="status">{saved && <p className="flex items-center gap-2 text-sm text-success"><Check size={16} />{storageError ? 'Saved for this session only.' : 'Saved on this device.'}</p>}</div>
     <div className="flex gap-1 overflow-x-auto border-b border-line" role="group" aria-label="Profile sections">{sections.map(({ id, label, icon: Icon }) => <button type="button" key={id} aria-pressed={section === id} onClick={() => setSection(id)} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-bold transition ${section === id ? 'border-brand text-brand-strong' : 'border-transparent text-muted hover:text-fg'}`}><Icon size={17} />{label}</button>)}</div>
+    <div hidden={section !== 'events'}><MyEvents /></div>
     <div hidden={section !== 'connections'}><ConnectionsPanel /></div>
     <div hidden={section !== 'social'}><SocialLinks /></div>
     <div hidden={section !== 'about'}>

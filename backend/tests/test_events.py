@@ -86,3 +86,51 @@ def test_ticketmaster_parser_and_classifier():
     assert classify.categorize(e.title, None, e.raw_category)[0] == "sports"
     assert classify.vibe("Yoga for beginners", "small group", None) == "introvert"
     assert classify.vibe("Live music festival", None, "Music") == "extrovert"
+
+
+def _user_id(client, auth):
+    return client.get("/api/auth/me", headers=auth).json()["id"]
+
+
+def test_private_events_are_friends_only():
+    soon = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    with TestClient(app) as client:
+        host = _signup(client, "private-host@example.com")
+        friend = _signup(client, "private-friend@example.com")
+        fan = _signup(client, "private-fan@example.com")  # follows the host, not followed back
+        stranger = _signup(client, "private-stranger@example.com")
+        host_id, friend_id = _user_id(client, host), _user_id(client, friend)
+
+        # host <-> friend follow each other (friends); fan only follows the host
+        assert client.put(f"/api/social/following/{friend_id}", headers=host).status_code == 204
+        assert client.put(f"/api/social/following/{host_id}", headers=friend).status_code == 204
+        assert client.put(f"/api/social/following/{host_id}", headers=fan).status_code == 204
+
+        where = {"position": {"lat": 51.05, "lng": -114.07}}
+        pub = client.post("/api/events", headers=host, json={"title": "Open garden day", "start": soon, **where}).json()
+        priv = client.post("/api/events", headers=host, json={"title": "Birthday picnic", "start": soon, "visibility": "private", **where})
+        assert priv.status_code == 201 and priv.json()["visibility"] == "private"
+        priv = priv.json()
+        assert pub["visibility"] == "public"
+
+        titles = lambda auth=None: {e["title"] for e in client.get("/api/events", headers=auth or {}).json()}  # noqa: E731
+        assert titles(host) >= {"Open garden day", "Birthday picnic"}
+        assert "Birthday picnic" in titles(friend)
+        for outsider in (fan, stranger, None):
+            assert "Birthday picnic" not in titles(outsider) and "Open garden day" in titles(outsider)
+
+        # the private event can't be opened or RSVP'd by someone who isn't a friend
+        assert client.get(f"/api/events/{priv['id']}", headers=stranger).status_code == 404
+        assert client.get(f"/api/events/{priv['id']}").status_code == 404
+        assert client.put(f"/api/events/{priv['id']}/rsvp", json={}, headers=fan).status_code == 404
+        assert client.put(f"/api/events/{priv['id']}/rsvp", json={}, headers=friend).json()["going"] == 1
+
+        # My events: everything you created, private included; nobody else's
+        mine = client.get("/api/events/mine", headers=host).json()
+        assert {e["title"] for e in mine} == {"Open garden day", "Birthday picnic"} and all(e["mine"] for e in mine)
+        assert client.get("/api/events/mine", headers=friend).json() == []
+        assert client.get("/api/events/mine").status_code == 401
+
+        # unfollowing ends the friendship, and with it access
+        assert client.delete(f"/api/social/following/{host_id}", headers=friend).status_code == 204
+        assert "Birthday picnic" not in titles(friend)

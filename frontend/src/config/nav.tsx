@@ -1,9 +1,10 @@
 // ADD A PAGE: create src/pages/MyPage.tsx, then add ONE line below. The route and sidebar icon appear automatically.
 // Icons: https://lucide.dev/icons
 import type { LucideIcon } from 'lucide-react'
-import { Map as MapIcon, Users, UserRound, Settings as SettingsIcon } from 'lucide-react'
+import { CalendarPlus, Map as MapIcon, Users, UserRound, Settings as SettingsIcon } from 'lucide-react'
 import type { ReactElement } from 'react'
 import Explore from '../pages/Explore'
+import CreateEvent from '../pages/CreateEvent'
 import Settings from '../pages/Settings'
 import Community from '../pages/Community'
 import Profile from '../pages/Profile'
@@ -13,6 +14,7 @@ export type NavItem = { path: string; label: string; icon: LucideIcon; element: 
 
 export const NAV: NavItem[] = [
   { path: '/', label: 'Explore', icon: MapIcon, element: <Explore />, fullBleed: true },
+  { path: '/create', label: 'Create event', icon: CalendarPlus, element: <CreateEvent /> },
   { path: '/community', label: 'Community', icon: Users, element: <Community /> },
   { path: '/profile', label: 'Profile', icon: UserRound, element: <Profile /> },
   { path: '/settings', label: 'Settings', icon: SettingsIcon, element: <Settings /> },
