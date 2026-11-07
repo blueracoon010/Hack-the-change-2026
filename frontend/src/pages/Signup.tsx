@@ -42,7 +42,7 @@ export default function Signup() {
           We only store your name, email and a securely hashed password. You can export or delete them any time in Settings.
         </p>
         <p className="text-center text-muted">
-          Already have an account? <Link to="/login" state={{ from }} className="font-bold text-brand-strong hover:underline">Sign in</Link>
+          Already have an account? <Link to="/login" state={{ from }} className="font-bold text-brand-strong hover:underline">Sign in</Link> · <Link to="/forgot-password" className="font-bold text-brand-strong hover:underline">Forgot password?</Link>
         </p>
       </form>
     </AuthLayout>

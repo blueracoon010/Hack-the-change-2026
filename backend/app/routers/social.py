@@ -181,3 +181,70 @@ def view_person(person_id: int, user: User = Depends(get_current_user), session:
             'interests': their_interests, 'shared_interests': sorted(my_interests & set(their_interests)),
             'instagram': profile.instagram if profile else '',
             'events': [{'id': str(e.id), 'title': e.title, 'start': e.start.isoformat(), 'venue': e.venue_name or ''} for e in events]}
+
+
+# ---------- "My people" on the Explore map ----------
+# Profile interests -> map categories (frontend/src/lib/nexus.ts Category)
+_INTEREST_CATEGORY = {'Walking & outdoors': 'outdoors', 'Books': 'learning', 'Art & culture': 'arts',
+                      'Music': 'arts', 'Sports': 'sports', 'Coffee & conversation': 'social'}
+_COLORS = ['#e0457b', '#0e8a5f', '#5a3ff0', '#c2410c', '#0369a1', '#7c3aed', '#b45309', '#be123c']
+
+
+def _open_to_go_with(viewer_id: int, person_id: int, mutual: bool, row) -> bool:
+    """Same audience rules as /api/buddies: off, everyone, mutual follows, or a hand-picked list."""
+    from ..events.models import EventRsvp
+    mode = row.mode if row else 'selected'
+    audience = row.audience if row else 'mutual'
+    if mode == 'off':
+        return False
+    allowed = audience == 'everyone' or (audience == 'mutual' and mutual) or \
+        (audience == 'selected' and row is not None and viewer_id in json.loads(row.people_ids_json))
+    return allowed and (mode == 'any' or bool(row and json.loads(row.event_ids_json)))
+
+
+@router.get('/map-people')
+async def map_people(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
+    """People you follow, shaped like `Person` in frontend/src/lib/nexus.ts.
+
+    Privacy: a pin appears only if that person turned on discovery AND entered a neighbourhood; the pin is the
+    neighbourhood's centre, never an address. Which events they're going to is shown to mutual connections only.
+    """
+    from ..events.geocode import geocode
+    from ..events.models import Event, EventRsvp, utcnow
+    from ..events.router import visible_to
+    from ..models import BuddyPreference
+
+    following = set(session.exec(select(Follow.following_id).where(Follow.follower_id == user.id)).all())
+    followers = set(session.exec(select(Follow.follower_id).where(Follow.following_id == user.id)).all())
+    if not following:
+        return {'people': [], 'hidden': 0}
+    people = session.exec(select(User).where(User.id.in_(following)).order_by(User.name, User.id)).all()
+    profiles = {p.user_id: p for p in session.exec(select(SocialProfile).where(SocialProfile.user_id.in_(following))).all()}
+    prefs = {p.user_id: p for p in session.exec(select(BuddyPreference).where(BuddyPreference.user_id.in_(following))).all()}
+    visible_events = set(session.exec(select(Event.id).where(Event.start >= utcnow() - timedelta(hours=3), visible_to(user.id, session))).all())
+
+    out, hidden = [], 0
+    for person in people:
+        profile = profiles.get(person.id)
+        if not profile or not profile.discoverable or not profile.neighbourhood.strip():
+            hidden += 1
+            continue
+        point = await geocode(session, f'{profile.neighbourhood}, Calgary, AB')
+        if not point:
+            hidden += 1
+            continue
+        mutual = person.id in followers
+        going = sorted(str(eid) for eid in session.exec(select(EventRsvp.event_id).where(EventRsvp.user_id == person.id)).all()
+                       if eid in visible_events) if mutual else []
+        out.append({
+            'id': str(person.id), 'name': person.name,
+            'relation': 'connection' if mutual else 'following',
+            'neighbourhood': profile.neighbourhood,
+            'position': {'lat': round(point[0], 4), 'lng': round(point[1], 4)},
+            'color': _COLORS[person.id % len(_COLORS)],
+            'interests': sorted({_INTEREST_CATEGORY[i] for i in json.loads(profile.interests_json) if i in _INTEREST_CATEGORY}),
+            'openToBuddy': _open_to_go_with(user.id, person.id, mutual, prefs.get(person.id)),
+            'goingTo': going,
+            'languages': [],
+        })
+    return {'people': out, 'hidden': hidden}

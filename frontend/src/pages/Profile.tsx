@@ -2,7 +2,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { MapPin, Users, Check, Pencil, Heart, Link2, ArrowUpRight, Coffee, BookOpen, Music, Palette, Footprints, Trophy, HandHeart, CalendarDays } from 'lucide-react'
 import { Button, Card, Field } from '../components/ui'
-import { groups, interests, useCommunityState, type LocalProfile } from '../lib/community'
+import { groups, interests, useCommunityGroups, useCommunityState, type LocalProfile } from '../lib/community'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import type { User } from '../lib/types'
@@ -49,7 +49,8 @@ export default function Profile() {
   const [params, setParams] = useSearchParams()
   const section = sections.find(s => s.id === params.get('section'))?.id ?? 'about'
   const setSection = (id: typeof sections[number]['id']) => setParams({ section: id })
-  const joined = groups.filter(g => data.joined.includes(g.id))
+  const { joined: joinedIds } = useCommunityGroups()
+  const joined = groups.filter(g => joinedIds.includes(g.id))
   function edit() { setDraft(profile); setEditing(true); setSection('about'); setSaved(false); setSaveError('') }
   async function save(e: FormEvent) {
     e.preventDefault()

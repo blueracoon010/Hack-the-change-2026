@@ -7,6 +7,8 @@ type AuthState = {
   ready: boolean // false while we check a saved session on startup
   login: (email: string, password: string) => Promise<void>
   signup: (name: string, email: string, password: string) => Promise<void>
+  /** Set a new password from an emailed reset link, then sign in. */
+  resetPassword: (token: string, password: string) => Promise<void>
   logout: () => void
   setUser: (u: User) => void
 }
@@ -47,9 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleToken(await api<TokenResponse>('/api/auth/signup', { method: 'POST', body: { name, email, password } }))
   }, [])
 
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    handleToken(await api<TokenResponse>('/api/auth/reset-password', { method: 'POST', body: { token, password } }))
+  }, [])
+
   const logout = useCallback(() => { saveToken(null); setUser(null) }, [])
 
-  return <AuthContext.Provider value={{ user, ready, login, signup, logout, setUser }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, ready, login, signup, resetPassword, logout, setUser }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

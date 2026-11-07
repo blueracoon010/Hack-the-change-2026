@@ -15,8 +15,8 @@ from ..db import get_session
 from ..models import Follow, User, BuddyPreference
 from ..security import get_current_user
 from .geocode import geocode
-from .models import Event, EventRsvp, SyncRun, utcnow
-from .schemas import CommunityEventIn, EventOut, LatLng, RsvpIn, iso_utc, to_utc
+from .models import Event, EventRsvp, EventSave, SyncRun, utcnow
+from .schemas import Camel, CommunityEventIn, EventOut, LatLng, RsvpIn, iso_utc, to_utc
 from .sources import SOURCES
 from .sync import sync_all
 
@@ -217,6 +217,37 @@ def my_events(user: User = Depends(get_current_user), session: Session = Depends
     return [to_out(r, counts, mine, user.id, None) for r in rows]
 
 
+class SaveIn(Camel):
+    saved: bool = False
+    reminder: bool = False
+
+
+@router.get("/saved")
+def saved_events(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
+    """Your bookmarks and "remind me the day before" flags, as event id lists."""
+    rows = session.exec(select(EventSave).where(EventSave.user_id == user.id)).all()
+    return {"saved": [str(r.event_id) for r in rows if r.saved], "reminders": [str(r.event_id) for r in rows if r.reminder]}
+
+
+@router.put("/{event_id}/save")
+def save_event(event_id: int, body: SaveIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
+    """Set both flags for one event. Both false removes the row."""
+    e = session.get(Event, event_id)
+    if not e or not can_see(e, user.id, session):
+        raise HTTPException(404, "Event not found")
+    row = session.get(EventSave, (event_id, user.id))
+    if not body.saved and not body.reminder:
+        if row:
+            session.delete(row)
+            session.commit()
+    else:
+        row = row or EventSave(event_id=event_id, user_id=user.id)
+        row.saved, row.reminder = body.saved, body.reminder
+        session.add(row)
+        session.commit()
+    return {"eventId": str(event_id), "saved": body.saved, "reminder": body.reminder}
+
+
 @router.post("/sync")
 async def sync_now(_: User = Depends(get_current_user)) -> dict:
     """Pull fresh events from every configured source right now (signed-in users only, to protect API quotas)."""
@@ -275,6 +306,7 @@ def delete_event(event_id: int, user: User = Depends(get_current_user), session:
     if not e or e.created_by != user.id:
         raise HTTPException(404, "Event not found or not yours")
     session.exec(delete(EventRsvp).where(EventRsvp.event_id == event_id))
+    session.exec(delete(EventSave).where(EventSave.event_id == event_id))
     session.delete(e)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

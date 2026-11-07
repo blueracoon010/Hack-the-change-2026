@@ -33,6 +33,7 @@ export default function Login() {
         {error && <Alert>{error}</Alert>}
         <Field label="Email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         <Field label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <p className="-mt-2 text-right text-sm"><Link to="/forgot-password" state={{ email }} className="font-bold text-brand-strong hover:underline">Forgot password?</Link></p>
         <Button type="submit" loading={loading} className="w-full py-3">Sign in</Button>
         <p className="text-center text-muted">
           New here? <Link to="/signup" state={{ from }} className="font-bold text-brand-strong hover:underline">Create an account</Link>

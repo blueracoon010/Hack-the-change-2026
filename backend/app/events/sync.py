@@ -79,8 +79,9 @@ def prune_past(session: Session) -> None:
     cutoff = utcnow() - timedelta(days=1)
     stale = session.exec(select(Event.id).where(Event.source != "community", Event.start < cutoff)).all()
     if stale:
-        from .models import EventRsvp
+        from .models import EventRsvp, EventSave
         session.exec(delete(EventRsvp).where(EventRsvp.event_id.in_(stale)))
+        session.exec(delete(EventSave).where(EventSave.event_id.in_(stale)))
         session.exec(delete(Event).where(Event.id.in_(stale)))
         session.commit()
 
