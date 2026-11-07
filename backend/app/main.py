@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import init_db
-from .routers import auth, calgary, energy, ml, users
+from .routers import auth, calgary, energy, ml, users, social
 
 
 @asynccontextmanager
@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, users.router, energy.router, calgary.router, ml.router):
+for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router):
     app.include_router(r)
 
 

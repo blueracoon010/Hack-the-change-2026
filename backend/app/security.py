@@ -39,6 +39,8 @@ def get_current_user(
         raise unauthorized
     try:
         payload = jwt.decode(creds.credentials, settings.jwt_secret, algorithms=["HS256"])
+        if payload.get('purpose', 'access') != 'access':
+            raise unauthorized
         user_id = int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         raise unauthorized

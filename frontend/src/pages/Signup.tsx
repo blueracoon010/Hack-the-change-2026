@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../components/AuthLayout'
 import { Alert, Button, Field } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 export default function Signup() {
   const { signup } = useAuth()
   const navigate = useNavigate()
+  const from = (useLocation().state as { from?: string } | null)?.from ?? '/'
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -20,7 +21,7 @@ export default function Signup() {
     setLoading(true)
     try {
       await signup(form.name, form.email, form.password)
-      navigate('/', { replace: true })
+      navigate(from, { replace: true })
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -41,7 +42,7 @@ export default function Signup() {
           We only store your name, email and a securely hashed password. You can export or delete them any time in Settings.
         </p>
         <p className="text-center text-muted">
-          Already have an account? <Link to="/login" className="font-bold text-brand-strong hover:underline">Sign in</Link>
+          Already have an account? <Link to="/login" state={{ from }} className="font-bold text-brand-strong hover:underline">Sign in</Link>
         </p>
       </form>
     </AuthLayout>

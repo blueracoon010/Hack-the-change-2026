@@ -12,6 +12,7 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
   const current = NAV.find((n) => n.path === location.pathname)
+  const browsingAsGuest = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS !== 'false' && !user
 
   return (
     <div className="flex min-h-screen">
@@ -47,16 +48,16 @@ export function AppLayout() {
           <p className="hidden text-sm font-bold text-muted md:block">{current?.label}</p>
           <div className="flex items-center gap-3">
             <div className="text-right leading-tight">
-              <p className="text-sm font-bold">{user?.name}</p>
-              <p className="text-xs text-muted">{user?.email}</p>
+              <p className="text-sm font-bold">{browsingAsGuest ? 'Development preview' : user?.name}</p>
+              <p className="text-xs text-muted">{browsingAsGuest ? 'Browsing without an account' : user?.email}</p>
             </div>
             <span className="grid size-10 place-items-center rounded-full bg-pink font-extrabold text-[#8a1838]" aria-hidden>
-              {user?.name?.[0]?.toUpperCase() ?? '?'}
+              {user?.name?.[0]?.toUpperCase() ?? 'D'}
             </span>
-            <button type="button" onClick={logout} aria-label="Sign out" title="Sign out"
+            {!browsingAsGuest && <button type="button" onClick={logout} aria-label="Sign out" title="Sign out"
               className="grid size-10 place-items-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg">
               <LogOut className="size-5" aria-hidden />
-            </button>
+            </button>}
           </div>
         </header>
 

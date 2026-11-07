@@ -40,6 +40,7 @@ export default function Settings() {
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader title="Settings" subtitle="Your profile, display and privacy controls." />
+      {!user && <p className="rounded-xl border border-line bg-surface px-4 py-3 text-muted">Development preview: display settings work without an account. Profile and account actions require signing in.</p>}
       <div aria-live="polite">{message && <p className="rounded-xl bg-accent-soft px-4 py-3 font-bold text-[#05634f]">{message}</p>}</div>
       {error && <Alert>{error}</Alert>}
 
@@ -49,7 +50,7 @@ export default function Settings() {
           <Field label="Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
           <Field label="Email" value={user?.email ?? ''} disabled hint="Email can't be changed yet." />
         </div>
-        <Button className="mt-4" onClick={saveProfile} loading={saving} disabled={!name.trim() || name === user?.name}>Save changes</Button>
+        <Button className="mt-4" onClick={saveProfile} loading={saving} disabled={!user || !name.trim() || name === user?.name}>Save changes</Button>
       </Card>
 
       <Card aria-labelledby="a11y-h">
@@ -75,9 +76,9 @@ export default function Settings() {
         <h2 id="privacy-h" className="mb-2 text-lg font-extrabold">Privacy & your data</h2>
         <p className="text-muted">We store only your <strong className="text-fg">name</strong>, <strong className="text-fg">email</strong>, a <strong className="text-fg">bcrypt-hashed password</strong> and your sign-up date. Energy and community data come from public sources and are not linked to you. No tracking or analytics.</p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={exportData}><Download className="size-4" aria-hidden /> Export my data</Button>
+          <Button variant="secondary" onClick={exportData} disabled={!user}><Download className="size-4" aria-hidden /> Export my data</Button>
           {!confirmDelete ? (
-            <Button variant="danger" onClick={() => setConfirmDelete(true)}><Trash2 className="size-4" aria-hidden /> Delete my account</Button>
+            <Button variant="danger" onClick={() => setConfirmDelete(true)} disabled={!user}><Trash2 className="size-4" aria-hidden /> Delete my account</Button>
           ) : (
             <div role="alertdialog" aria-label="Confirm account deletion" className="flex flex-wrap items-center gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3">
               <p className="font-bold text-danger">This permanently deletes your account. Continue?</p>

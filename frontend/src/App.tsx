@@ -7,10 +7,13 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { PreferencesProvider } from './context/PreferencesContext'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Invite from './pages/Invite'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, ready } = useAuth()
   const location = useLocation()
+  // Local development can browse pages without a backend or saved session.
+  if (import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS !== 'false') return children
   if (!ready) return <Loading label="Starting up" />
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   return children
@@ -38,6 +41,7 @@ export default function App() {
         {/* HashRouter is required for Electron (pages load from file://) */}
         <HashRouter>
           <Routes>
+            <Route path="/invite/:token" element={<Invite />} />
             <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
             <Route path="/signup" element={<GuestOnly><Signup /></GuestOnly>} />
             <Route element={<RequireAuth><AppLayout /></RequireAuth>}>

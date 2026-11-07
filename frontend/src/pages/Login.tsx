@@ -35,7 +35,7 @@ export default function Login() {
         <Field label="Password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" loading={loading} className="w-full py-3">Sign in</Button>
         <p className="text-center text-muted">
-          New here? <Link to="/signup" className="font-bold text-brand-strong hover:underline">Create an account</Link>
+          New here? <Link to="/signup" state={{ from }} className="font-bold text-brand-strong hover:underline">Create an account</Link>
         </p>
       </form>
     </AuthLayout>
