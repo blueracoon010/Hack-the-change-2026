@@ -43,6 +43,9 @@ def init_db() -> None:
 # everyone's existing database (SQLite or Postgres) picks them up on the next start. (table, column, SQL type + default)
 _NEW_COLUMNS = [
     ("event", "visibility", "VARCHAR NOT NULL DEFAULT 'public'"),
+    ("socialprofile", "bio", "VARCHAR NOT NULL DEFAULT ''"),
+    ("socialprofile", "neighbourhood", "VARCHAR NOT NULL DEFAULT ''"),
+    ("socialprofile", "social_style", "VARCHAR NOT NULL DEFAULT 'A little of both'"),
 ]
 
 

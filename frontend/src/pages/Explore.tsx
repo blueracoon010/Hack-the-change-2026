@@ -13,7 +13,7 @@ import { useApi } from '../hooks/useApi'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
 import { api } from '../lib/api'
 import {
-  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtTime, fmtWhen, fromApi, initials, LANGUAGES, SAMPLE_PEOPLE, SOURCE_LABEL, VIBES,
+  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtTime, fmtWhen, fromApi, initials, LANGUAGES, SOURCE_LABEL, VIBES,
   type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
 } from '../lib/nexus'
 
@@ -53,7 +53,7 @@ export default function Explore() {
     useApi<ApiEvent[]>('/api/events?limit=500', { refreshMs: 5 * 60_000 })
   const allEvents = useMemo(() => (apiEvents ?? []).map(fromApi), [apiEvents])
 
-  // Per-user actions. RSVP and "find a buddy" are saved to the backend; saved/reminders are local for now.
+  // Per-user actions, all saved to the (shared) database: RSVP, find a buddy, bookmarks and reminders.
   const [rsvps, setRsvps] = useState<Set<string>>(new Set())
   const [rsvpError, setRsvpError] = useState('')
   const [saved, setSaved] = useState<Set<string>>(new Set())
@@ -61,6 +61,26 @@ export default function Explore() {
   const [reminders, setReminders] = useState<Set<string>>(new Set())
   const toggle = (set: SetToggle, id: string) =>
     set((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+
+  // Bookmarks + "remind me" live in the database so they survive reloads and follow you to other devices.
+  const { data: savedState } = useApi<{ saved: string[]; reminders: string[] }>('/api/events/saved')
+  useEffect(() => {
+    if (!savedState) return
+    setSaved(new Set(savedState.saved)); setReminders(new Set(savedState.reminders))
+  }, [savedState])
+  function setSaveFlags(id: string, next: { saved: boolean; reminder: boolean }) {
+    const before = { saved: saved.has(id), reminder: reminders.has(id) }
+    setHas(setSaved, id, next.saved); setHas(setReminders, id, next.reminder)
+    api(`/api/events/${id}/save`, { method: 'PUT', body: next }).catch(() => {  // roll back if it didn't save
+      setHas(setSaved, id, before.saved); setHas(setReminders, id, before.reminder)
+    })
+  }
+  const toggleSaved = (id: string) => setSaveFlags(id, { saved: !saved.has(id), reminder: reminders.has(id) })
+  const toggleReminder = (id: string) => setSaveFlags(id, { saved: saved.has(id), reminder: !reminders.has(id) })
+
+  // My people: people you follow who share a neighbourhood (GET /api/social/map-people).
+  const { data: peopleData } = useApi<{ people: Person[]; hidden: number }>('/api/social/map-people', { refreshMs: 5 * 60_000 })
+  const allPeople = useMemo(() => peopleData?.people ?? [], [peopleData])
   const setHas = (set: SetToggle, id: string, on: boolean) =>
     set((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n })
 
@@ -112,15 +132,15 @@ export default function Explore() {
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
   }, [allEvents, cats, vibe, when, q, origin, sort, radiusKm])
 
-  const people = useMemo(() => SAMPLE_PEOPLE
+  const people = useMemo(() => allPeople
     .filter((p) => relation === 'all' || p.relation === relation)
     .filter((p) => !buddyOnly || p.openToBuddy)
     .filter((p) => !q || [p.name, p.neighbourhood].some((s) => s.toLowerCase().includes(q)))
     .map((p) => ({ ...p, km: distanceKm(origin, p.position) }))
-    .sort((a, b) => a.km - b.km), [relation, buddyOnly, q, origin])
+    .sort((a, b) => a.km - b.km), [allPeople, relation, buddyOnly, q, origin])
 
   const selectedEvent = selected?.kind === 'event' ? allEvents.find((e) => e.id === selected.id) ?? null : null
-  const selectedPerson = selected?.kind === 'person' ? SAMPLE_PEOPLE.find((p) => p.id === selected.id) ?? null : null
+  const selectedPerson = selected?.kind === 'person' ? allPeople.find((p) => p.id === selected.id) ?? null : null
 
   // People mode: show the events your people are going to; highlight the selected person's.
   const peopleEvents = useMemo(() => {
@@ -312,8 +332,8 @@ export default function Explore() {
               <EventDetail event={selectedEvent} km={distanceKm(origin, selectedEvent.position)} onClose={() => setSelected(null)}
                 going={rsvps.has(selectedEvent.id)} onRsvp={() => rsvpEvent(selectedEvent.id)}
                 buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => buddyEvent(selectedEvent.id)}
-                reminder={reminders.has(selectedEvent.id)} onReminder={() => toggle(setReminders, selectedEvent.id)}
-                saved={saved.has(selectedEvent.id)} onSave={() => toggle(setSaved, selectedEvent.id)}
+                reminder={reminders.has(selectedEvent.id)} onReminder={() => toggleReminder(selectedEvent.id)}
+                saved={saved.has(selectedEvent.id)} onSave={() => toggleSaved(selectedEvent.id)} people={allPeople}
                 backLabel={mode === 'events' ? 'All events' : 'All people'}
                 onPerson={(p) => { setMode('people'); select({ kind: 'person', id: p.id }, p.position) }} />
             ) : selectedPerson ? (
@@ -335,7 +355,7 @@ export default function Explore() {
                   {mode === 'events' && events.map((e) => (
                     <li key={e.id}>
                       <EventCard event={e} km={e.km} going={rsvps.has(e.id)} saved={saved.has(e.id)}
-                        onSave={() => toggle(setSaved, e.id)} onView={() => select({ kind: 'event', id: e.id }, e.position)} />
+                        onSave={() => toggleSaved(e.id)} onView={() => select({ kind: 'event', id: e.id }, e.position)} />
                     </li>
                   ))}
                   {mode === 'people' && people.map((p) => (
@@ -352,7 +372,9 @@ export default function Explore() {
                       ) : mode === 'events' && eventsLoading && !apiEvents ? (
                         'Finding events near you…'
                       ) : (
-                        <>Nothing matches yet.
+                        <>{mode === 'people' && allPeople.length === 0
+                            ? <>No one to show yet. Follow people under Profile → Connections; they appear here once they share a neighbourhood.{!!peopleData?.hidden && ` (${peopleData.hidden} you follow keep their location private.)`}</>
+                            : 'Nothing matches yet.'}
                           {mode === 'events' && filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
                       )}
                     </li>
@@ -509,8 +531,8 @@ function DetailCard({ label, backLabel, onClose, children }: { label: string; ba
   )
 }
 
-function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, reminder, onReminder, saved, onSave, backLabel, onPerson }: {
-  event: NexusEvent; km: number; onClose: () => void
+function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, reminder, onReminder, saved, onSave, backLabel, onPerson, people }: {
+  event: NexusEvent; km: number; onClose: () => void; people: Person[]
   going: boolean; onRsvp: () => void; buddy: boolean; onBuddy: () => void; reminder: boolean; onReminder: () => void
   saved: boolean; onSave: () => void; backLabel: string
   onPerson: (p: Person) => void
@@ -518,7 +540,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
   const weather = useWeather()
   const f = forecastFor(weather, e.start)
   const tip = weatherTip(f, e.indoor)
-  const friends = SAMPLE_PEOPLE.filter((p) => p.goingTo.includes(e.id))
+  const friends = people.filter((p) => p.goingTo.includes(e.id))
   const [lang, setLang] = useState('English')
   const end = new Date(e.start.getTime() + e.durationMin * 60_000)
 
@@ -640,7 +662,7 @@ function PersonDetail({ person: p, events, km, onClose, asked, onAsk, onEvent }:
       <div className="mt-4 flex flex-wrap gap-2">
         {p.interests.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
       </div>
-      <p className="mt-3 text-sm text-muted">Speaks {p.languages.join(', ')}</p>
+      {p.languages.length > 0 && <p className="mt-3 text-sm text-muted">Speaks {p.languages.join(', ')}</p>}
 
       <h3 className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Going to</h3>
       <ul className="mt-2 space-y-2">

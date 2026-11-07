@@ -26,4 +26,8 @@ python -m pytest -q                # auth + privacy flow test
 | `GET /api/calgary/dataset/{id}?limit=&where=&select=&order=` | **Any** data.calgary.ca dataset |
 | `GET /api/calgary/solar/monthly`, `/solar/top-sites` | City solar production example |
 | `GET /api/ml/forecast` | Next 24 h demand forecast from the model in `/ml` |
+| `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | Emailed reset link (30 min, single use). No `SMTP_HOST` in `.env` = the link is printed in this backend's terminal |
+| `GET /api/social/people/{id}`, `GET /api/social/map-people` | Another member's profile (details only if they turned on discovery) and the people you follow for the map |
+| `GET /api/community/groups`, `PUT/DELETE …/groups/{id}/membership`, `GET/POST …/groups/{id}/channels/{channel}/messages` | Community memberships and chat |
+| `GET /api/events/saved`, `PUT /api/events/{id}/save` | Bookmarks and reminders |
 | `GET /api/events?lat=&lng=` (and more) | Real events for the map (Ticketmaster, Meetup, community). See [app/events/README.md](app/events/README.md) |

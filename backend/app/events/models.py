@@ -67,3 +67,13 @@ class SyncRun(SQLModel, table=True):
     skipped_no_location: int = 0
     error: str | None = None
     finished_at: datetime = Field(default_factory=utcnow)
+
+
+class EventSave(SQLModel, table=True):
+    """Bookmarks and "remind me the day before" on the map, per account."""
+
+    event_id: int = Field(foreign_key="event.id", primary_key=True)
+    user_id: int = Field(foreign_key="user.id", primary_key=True, index=True)
+    saved: bool = False
+    reminder: bool = False
+    created_at: datetime = Field(default_factory=utcnow)

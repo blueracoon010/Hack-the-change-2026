@@ -31,6 +31,10 @@ class SocialProfile(SQLModel, table=True):
     instagram: str = ''
     interests_json: str = '[]'
     discoverable: bool = False
+    # "About me" (shown to other members only when discoverable is on)
+    bio: str = ''
+    neighbourhood: str = ''
+    social_style: str = 'A little of both'
 
 
 class BuddyPreference(SQLModel, table=True):
@@ -39,3 +43,20 @@ class BuddyPreference(SQLModel, table=True):
     audience: str = 'mutual'
     event_ids_json: str = '[]'
     people_ids_json: str = '[]'
+
+
+class GroupMembership(SQLModel, table=True):
+    """Community page: who joined which group (group ids are defined in routers/community.py)."""
+    group_id: str = Field(primary_key=True)
+    user_id: int = Field(foreign_key="user.id", primary_key=True, index=True)
+    joined_at: datetime = Field(default_factory=_now)
+
+
+class GroupMessage(SQLModel, table=True):
+    """Community page: a message in a group channel. Only members can post; any signed-in member can read."""
+    id: int | None = Field(default=None, primary_key=True)
+    group_id: str = Field(index=True)
+    channel: str = Field(index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    text: str
+    created_at: datetime = Field(default_factory=_now, index=True)

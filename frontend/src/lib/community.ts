@@ -1,5 +1,6 @@
-﻿import { useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { api } from './api'
 
 export const interests = ['Walking & outdoors', 'Books', 'Art & culture', 'Music', 'Sports', 'Coffee & conversation']
 export const groups = [
@@ -33,4 +34,27 @@ export function useCommunityState() {
     try { localStorage.setItem(key, JSON.stringify(next)); setStorageError(false) } catch { setStorageError(true) }
   }
   return { data, update, storageError }
+}
+
+/** Group membership + real member counts from the shared database (GET /api/community/groups). */
+export type GroupState = { id: string; members: number; joined: boolean }
+export type ChatMessage = { id: number; user_id: number; name: string; text: string; time: string; mine: boolean }
+
+export function useCommunityGroups() {
+  const [state, setState] = useState<Record<string, GroupState>>({})
+  const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState('')
+  const reload = useCallback(async () => {
+    try {
+      const rows = await api<GroupState[]>('/api/community/groups')
+      setState(Object.fromEntries(rows.map(r => [r.id, r]))); setError('')
+    } catch (e) { setError((e as Error).message) } finally { setLoaded(true) }
+  }, [])
+  useEffect(() => { void reload() }, [reload])
+  async function setMembership(id: string, join: boolean) {
+    await api(`/api/community/groups/${id}/membership`, { method: join ? 'PUT' : 'DELETE' })
+    await reload()
+  }
+  const joined = Object.values(state).filter(g => g.joined).map(g => g.id)
+  return { state, joined, loaded, error, reload, setMembership }
 }

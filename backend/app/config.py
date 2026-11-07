@@ -28,6 +28,14 @@ class Settings:
     events_radius_km = float(os.getenv("EVENTS_RADIUS_KM", "50"))
     events_days_ahead = int(os.getenv("EVENTS_DAYS_AHEAD", "30"))
     events_sync_minutes = int(os.getenv("EVENTS_SYNC_MINUTES", "30"))  # 0 = only sync via POST /api/events/sync
+    # Password reset emails. No SMTP_HOST = the reset link is printed in the backend terminal instead (dev only).
+    app_url = os.getenv("APP_URL", "http://localhost:5173").rstrip("/")  # where the frontend runs; link = APP_URL/#/reset-password?token=…
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    mail_from = os.getenv("MAIL_FROM", "") or os.getenv("SMTP_USER", "")
+    password_reset_minutes = int(os.getenv("PASSWORD_RESET_MINUTES", "30"))
     geocoder_user_agent = os.getenv("GEOCODER_USER_AGENT", "CodeTheChangeYYC-hackathon-events-map/0.1")
 
 

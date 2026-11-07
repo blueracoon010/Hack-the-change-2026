@@ -7,7 +7,7 @@ from .config import settings
 from .db import init_db
 from .events.router import router as events_router
 from .events.sync import start_background_sync
-from .routers import auth, calgary, energy, ml, users, social, buddies
+from .routers import auth, calgary, community, energy, ml, users, social, buddies
 
 
 @asynccontextmanager
@@ -29,7 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, buddies.router, events_router):
+for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, buddies.router, community.router, events_router):
     app.include_router(r)
 
 
