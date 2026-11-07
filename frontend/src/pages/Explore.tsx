@@ -34,11 +34,14 @@ export default function Explore() {
   const [vibe, setVibe] = useState<Vibe | 'all'>('all')
   const [when, setWhen] = useState<When>('week')
   const [sort, setSort] = useState<Sort>('near')
+  const [radiusKm, setRadiusKm] = useState<number | null>(null)
+  const [locationError, setLocationError] = useState('')
   const [relation, setRelation] = useState<Relation | 'all'>('all')
   const [buddyOnly, setBuddyOnly] = useState(false)
   const [selected, setSelected] = useState<Selection>(null)
   const [focus, setFocus] = useState<LatLng | null>(null)
   const [userPos, setUserPos] = useState<LatLng | null>(null)
+  const [mapOrigin, setMapOrigin] = useState<LatLng | null>(null)
   const [locating, setLocating] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
   const sideRef = useRef<HTMLDivElement>(null)
@@ -87,7 +90,7 @@ export default function Explore() {
     void saveRsvp(id, buddy || rsvps.has(id), buddy)
   }
 
-  const origin = userPos ?? CALGARY_CENTER
+  const origin = mapOrigin ?? userPos ?? CALGARY_CENTER
   const q = query.trim().toLowerCase()
 
   const events = useMemo(() => {
@@ -99,8 +102,9 @@ export default function Explore() {
       .filter((e) => when === 'all' || (when === 'today' ? calgaryDay(e.start) === calgaryDay(now) : e.start <= weekOut))
       .filter((e) => !q || [e.title, e.host, e.venue, e.description].some((s) => s.toLowerCase().includes(q)))
       .map((e) => ({ ...e, km: distanceKm(origin, e.position) }))
+      .filter((e) => radiusKm === null || e.km <= radiusKm)
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
-  }, [allEvents, cats, vibe, when, q, origin, sort])
+  }, [allEvents, cats, vibe, when, q, origin, sort, radiusKm])
 
   const people = useMemo(() => SAMPLE_PEOPLE
     .filter((p) => relation === 'all' || p.relation === relation)
@@ -133,17 +137,18 @@ export default function Explore() {
   }, [selected])
 
   function locate() {
-    if (!navigator.geolocation) return
+    setLocationError('')
+    if (!navigator.geolocation) { setLocationError('Location is unavailable in this browser. Distances use downtown Calgary.'); return }
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
-      (p) => { const pos = { lat: p.coords.latitude, lng: p.coords.longitude }; setUserPos(pos); setFocus(pos); setLocating(false) },
-      () => setLocating(false),
+      (p) => { const pos = { lat: p.coords.latitude, lng: p.coords.longitude }; setMapOrigin(null); setUserPos(pos); setFocus(pos); setSelected(null); setLocating(false) },
+      () => { setLocating(false); setLocationError('Could not update your location. Allow location access and try again; distances still use the location shown above.') },
       { enableHighAccuracy: false, timeout: 8000 },
     )
   }
 
-  const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week'
-  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week') }
+  const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
+  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week'); setRadiusKm(null) }
   const count = mode === 'events' ? events.length : people.length
 
   return (
@@ -182,6 +187,17 @@ export default function Explore() {
           </button>
         </div>
 
+        {mode === 'events' && <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-bold">
+            <MapPin className="size-4 text-brand-strong" aria-hidden /> Distance
+            <select value={radiusKm ?? 'all'} onChange={e => { setRadiusKm(e.target.value === 'all' ? null : Number(e.target.value)); setSelected(null) }} className="min-h-8 rounded-lg bg-surface px-2 text-fg" aria-describedby="distance-origin">
+              <option value="all">Any distance</option>
+              {[1, 5, 10, 25, 50, 100].map(km => <option key={km} value={km}>Within {km} km</option>)}
+            </select>
+          </label>
+          <p id="distance-origin" className="text-xs text-muted" role="status">{mapOrigin ? `From map point (${mapOrigin.lat.toFixed(3)}, ${mapOrigin.lng.toFixed(3)})` : userPos ? 'From your location' : 'From downtown Calgary'} · straight-line distance. Click the map to change the starting point.</p>
+          {locationError && <p role="status" className="w-full text-sm text-danger">{locationError}</p>}
+        </div>}
         {/* Filters */}
         <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
           {mode === 'events' ? (
@@ -265,6 +281,8 @@ export default function Explore() {
                 onSelect={(s) => setSelected(s)}
                 highlightEventIds={highlight}
                 userPos={userPos}
+                distanceOrigin={mapOrigin}
+                onMapClick={mode === 'events' ? position => { setMapOrigin(position); setSelected(null); setLocationError('') } : undefined}
                 focus={focus}
               />
             </div>
@@ -288,7 +306,7 @@ export default function Explore() {
                 <div className="mb-3 flex items-center justify-between gap-2 px-1">
                   <p className="font-bold text-muted" aria-live="polite">
                     {mode === 'events' ? `${count} event${count === 1 ? '' : 's'}` : `${count} ${count === 1 ? 'person' : 'people'}`}
-                    {userPos ? ' near you' : ' in Calgary'}
+                    {mapOrigin ? ' near selected point' : userPos ? ' near you' : ' in Calgary'}
                   </p>
                   {mode === 'events' && (
                     <Segmented label="Sort events" value={sort} onChange={setSort} options={[{ value: 'near', label: 'Nearest' }, { value: 'soon', label: 'Soonest' }]} />
