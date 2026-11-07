@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from ..db import get_session
 from ..models import BuddyPreference, Follow, User
 from ..events.models import Event, EventRsvp, utcnow
+from ..events.router import can_see, visible_to
 from ..security import get_current_user
 
 router = APIRouter(prefix='/api/buddies', tags=['buddies'])
@@ -25,7 +26,7 @@ def preference(user_id: int, session: Session) -> BuddySettings:
         requested = session.exec(select(EventRsvp.event_id).where(EventRsvp.user_id == user_id, EventRsvp.looking_for_buddy == True)).all()
         settings.event_ids = sorted(set(settings.event_ids) | set(requested))
     if settings.event_ids:
-        settings.event_ids = sorted(session.exec(select(Event.id).where(Event.id.in_(settings.event_ids))).all())
+        settings.event_ids = sorted(session.exec(select(Event.id).where(Event.id.in_(settings.event_ids), visible_to(user_id, session))).all())
     if settings.people_ids:
         followed = set(session.exec(select(Follow.following_id).where(Follow.follower_id == user_id)).all())
         settings.people_ids = sorted(set(settings.people_ids) & followed)
@@ -39,7 +40,7 @@ def get_preferences(user: User = Depends(get_current_user), session: Session = D
 def save_preferences(body: BuddySettings, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     event_ids = sorted(set(body.event_ids))
     people_ids = sorted(set(body.people_ids))
-    valid_events = set(session.exec(select(Event.id).where(Event.id.in_(event_ids))).all()) if event_ids else set()
+    valid_events = set(session.exec(select(Event.id).where(Event.id.in_(event_ids), visible_to(user.id, session))).all()) if event_ids else set()
     if set(event_ids) - valid_events:
         raise HTTPException(400, 'One or more events no longer exist. Refresh and try again.')
     followed = set(session.exec(select(Follow.following_id).where(Follow.follower_id == user.id)).all())
@@ -59,7 +60,7 @@ def save_preferences(body: BuddySettings, user: User = Depends(get_current_user)
 @router.get('/events/{event_id}')
 def available_people(event_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     event = session.get(Event, event_id)
-    if event is None:
+    if event is None or not can_see(event, user.id, session):
         raise HTTPException(404, 'Event not found')
     if event.start.replace(tzinfo=None) < utcnow().replace(tzinfo=None):
         return {'people': [], 'count': 0}
@@ -69,6 +70,8 @@ def available_people(event_id: int, user: User = Depends(get_current_user), sess
     followers = set(session.exec(select(Follow.follower_id).where(Follow.following_id == user.id)).all())
     people = []
     for person in session.exec(select(User).where(User.id != user.id).order_by(User.name, User.id)).all():
+        if not can_see(event, person.id, session):
+            continue
         row = settings_rows.get(person.id)
         mode = row.mode if row else 'selected'
         audience = row.audience if row else 'mutual'

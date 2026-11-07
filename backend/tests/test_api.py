@@ -3,7 +3,7 @@
 import os
 import tempfile
 
-os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mkdtemp()}/test.db"
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{tempfile.mkdtemp()}/test.db")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -182,5 +182,12 @@ def test_buddy_preferences_and_audiences():
         client.put(f'/api/events/{e1}/rsvp', json={'lookingForBuddy': False}, headers=auth_a)
         assert available(e1, auth_b) == []
         assert client.get('/api/users/me/export', headers=auth_a).json()['buddy_preferences'] is not None
+        private = client.post('/api/events', json={'title': 'Private buddy event', 'start': soon, 'visibility': 'private', 'position': {'lat': 51.04, 'lng': -114.07}}, headers=auth_a)
+        assert private.status_code == 201, private.text
+        private_id = int(private.json()['id'])
+        assert client.get(f'/api/buddies/events/{private_id}', headers=auth_c).status_code == 404
+        assert client.put('/api/buddies/me', json={**base, 'mode': 'selected', 'event_ids': [private_id]}, headers=auth_c).status_code == 400
+        assert client.put('/api/buddies/me', json=base, headers=auth_c).status_code == 200
+        assert available(private_id, auth_a) == []
         for auth in (auth_a, auth_b, auth_c):
             assert client.delete('/api/users/me', headers=auth).status_code == 204

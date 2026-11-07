@@ -2,6 +2,8 @@
 
 **Tech stack:** Python FastAPI with SQLModel on SQLite (switch to Postgres through `DATABASE_URL`), JWT auth with bcrypt-hashed passwords, and httpx clients for AESO and Calgary Open Data with in-memory caching.
 
+**Shared database:** by default each laptop has its own `app.db`, so teammates can't see each other's users. Point `DATABASE_URL` at the team's AWS RDS Postgres (setup in [cloud/README.md](../cloud/README.md#shared-database-aws-rds)) and everyone's localhost backend shares one set of users, follows and RSVPs. `GET /api/health` shows which database you're on.
+
 **Caveats:** Create a venv and install `requirements-ml.txt` (or `requirements.txt` if you skip ML, in which case `/api/ml/forecast` returns 503). Set a long random `JWT_SECRET` in `backend/.env` before deploying. AESO data comes from AESO's public ETS reports, so it needs internet access, and if AESO changes a report's format, `app/services/aeso.py` is the one file to fix.
 
 **What to work on:** Add your idea's tables in `app/models.py` and its routes as a new file in `app/routers/` (then register it in `app/main.py`), using `Depends(get_current_user)` on anything that needs login.

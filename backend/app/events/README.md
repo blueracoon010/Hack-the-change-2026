@@ -19,7 +19,7 @@ Explore map  <──  GET /api/events?lat=&lng=&bbox=&category=...  (router.py) 
 | File | What it does |
 |---|---|
 | `models.py` | Tables: `Event`, `EventRsvp` (real going/buddy counts), `GeocodeCache`, `SyncRun` |
-| `schemas.py` | `EventOut` = `NexusEvent` + extras (`source`, `url`, `imageUrl`, `distanceKm`, `meGoing`, `mine`, `end`, `isOnline`) |
+| `schemas.py` | `EventOut` = `NexusEvent` + extras (`source`, `url`, `imageUrl`, `distanceKm`, `meGoing`, `mine`, `visibility`, `end`, `isOnline`) |
 | `sources/` | One file per source with `configured()` and `fetch()`. Add Eventbrite/City of Calgary here |
 | `classify.py` | Keyword rules that turn source labels into app categories and introvert/extrovert vibe (explainable) |
 | `geocode.py` | Nominatim, 1 request/s, Calgary-biased, cached forever |
@@ -28,14 +28,17 @@ Explore map  <──  GET /api/events?lat=&lng=&bbox=&category=...  (router.py) 
 
 ## Endpoints (try them at http://localhost:8000/docs#/events)
 
+**Private events** (`visibility: "private"`) are friends only. Friends = mutual follows (you follow them and they follow you back), so following someone alone never reveals their private events. Rules live in `visible_to` / `can_see` in `router.py`; the `visibility` column is added to existing databases automatically on startup (`app/db.py`).
+
 | Endpoint | Notes |
 |---|---|
-| `GET /api/events` | Public. Filters: `lat`,`lng` (adds `distanceKm`, nearest first), `radiusKm`, `bbox=west,south,east,north`, `from`,`to` (ISO, default now→30 days), `category` (repeatable), `vibe`, `q`, `source`, `includeOnline`, `limit` |
+| `GET /api/events` | Public events for everyone; signed in you also get friends-only events from your friends and yourself. Filters: `lat`,`lng` (adds `distanceKm`, nearest first), `radiusKm`, `bbox=west,south,east,north`, `from`,`to` (ISO, default now→30 days), `category` (repeatable), `vibe`, `q`, `source`, `includeOnline`, `limit` |
 | `GET /api/events/geojson` | Same filters, GeoJSON FeatureCollection |
-| `GET /api/events/{id}` | One event |
+| `GET /api/events/mine` | Signed in. Every event you created (past + upcoming, public + private), newest first. Profile > My events |
+| `GET /api/events/{id}` | One event (404 if it's a friends-only event you can't see) |
 | `GET /api/events/status` | Per source: configured, event count, last sync time, last error |
 | `POST /api/events/sync` | Signed in. Pull from sources now (handy right before the demo) |
-| `POST /api/events` | Signed in. Community/flyer event, same field names as `NexusEvent`; needs `address` or `position` |
+| `POST /api/events` | Signed in. Community/flyer event, same field names as `NexusEvent`; needs `address` or `position`. `visibility`: `"public"` (default) or `"private"` |
 | `DELETE /api/events/{id}` | Signed in, your own events only |
 | `PUT` / `DELETE /api/events/{id}/rsvp` | Signed in. Body `{"lookingForBuddy": true}`; updates `going` / `lookingForBuddy` |
 
