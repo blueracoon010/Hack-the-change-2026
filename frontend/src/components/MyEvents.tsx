@@ -86,7 +86,7 @@ function MyEventRow({ event: e, past, onDeleted }: { event: NexusEvent; past?: b
       <div className="min-w-0 flex-1">
         <p className="truncate font-bold">{e.title}</p>
         <p className="flex flex-wrap items-center gap-x-3 text-sm text-muted">
-          <span>{fmtWhen(e.start)}</span>
+          <span>{fmtWhen(e.start, e.durationMin)}</span>
           {(e.venue || e.address) && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{e.venue || e.address}</span>}
         </p>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold">

@@ -148,11 +148,34 @@ export function fromCalgaryInput(value: string): Date {
   return new Date(wall - offset(wall - offset(wall))) // twice, so daylight-saving changeovers land right
 }
 
-export function fmtWhen(d: Date, now = new Date()) {
-  const time = fmtTime(d)
-  if (sameDay(d, now)) return `Today · ${time}`
-  if (sameDay(d, new Date(now.getTime() + 24 * 3600_000))) return `Tomorrow · ${time}`
-  return `${d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TIME_ZONE })} · ${time}`
+const DAY_MIN = 24 * 60
+const atMidnight = (d: Date) => { const p = calgaryParts(d); return p.hour === '00' && p.minute === '00' }
+
+/** Events created with just a From and To date run from midnight for whole days (Calgary time). */
+export const isAllDay = (start: Date, durationMin: number) => atMidnight(start) && durationMin > 0 && durationMin % DAY_MIN === 0
+
+/** "Today", "Tomorrow" or "Sat, Nov 8". */
+export function fmtDay(d: Date, now = new Date()) {
+  if (sameDay(d, now)) return 'Today'
+  if (sameDay(d, new Date(now.getTime() + 24 * 3600_000))) return 'Tomorrow'
+  return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TIME_ZONE })
+}
+
+/** "Tomorrow · 6:00 p.m."; all-day events show "Tomorrow · All day" or "Sat, Nov 8 – Mon, Nov 10". */
+export function fmtWhen(d: Date, durationMin?: number) {
+  if (durationMin !== undefined && isAllDay(d, durationMin)) {
+    const days = durationMin / DAY_MIN
+    // Midday of the last day, so a daylight-saving change can't push it onto the wrong date.
+    return days === 1 ? `${fmtDay(d)} · All day` : `${fmtDay(d)} – ${fmtDay(new Date(d.getTime() + ((days - 1) * 24 + 12) * 3600_000))}`
+  }
+  if (durationMin === undefined && atMidnight(d)) return fmtDay(d)
+  return `${fmtDay(d)} · ${fmtTime(d)}`
+}
+
+/** Full span for the event detail: "Tomorrow · 6:00 p.m.–8:00 p.m.", or the dates for all-day events. */
+export function fmtSpan(start: Date, durationMin: number) {
+  if (isAllDay(start, durationMin)) return fmtWhen(start, durationMin)
+  return `${fmtWhen(start)}–${fmtTime(new Date(start.getTime() + durationMin * 60_000))}`
 }
 
 export function initials(name: string) {

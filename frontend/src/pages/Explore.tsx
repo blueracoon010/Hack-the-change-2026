@@ -13,7 +13,7 @@ import { useApi } from '../hooks/useApi'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
 import { api } from '../lib/api'
 import {
-  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtTime, fmtWhen, fromApi, initials, LANGUAGES, SOURCE_LABEL, VIBES,
+  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtSpan, fmtWhen, fromApi, initials, LANGUAGES, SOURCE_LABEL, VIBES,
   type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
 } from '../lib/nexus'
 
@@ -454,7 +454,7 @@ function EventCard({ event: e, km, going, saved, onSave, onView }: {
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-muted">
             <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{placeOf(e)}</span>
-            <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden />{fmtWhen(e.start)}</span>
+            <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden />{fmtWhen(e.start, e.durationMin)}</span>
             <span className="inline-flex items-center gap-1"><Ticket className="size-3.5" aria-hidden />{e.cost}</span>
           </p>
           <h3 className="mt-1.5 text-xl font-extrabold leading-snug tracking-tight">{e.title}</h3>
@@ -542,7 +542,6 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
   const tip = weatherTip(f, e.indoor)
   const friends = people.filter((p) => p.goingTo.includes(e.id))
   const [lang, setLang] = useState('English')
-  const end = new Date(e.start.getTime() + e.durationMin * 60_000)
 
   return (
     <DetailCard label={`Event details: ${e.title}`} backLabel={backLabel} onClose={onClose}>
@@ -561,7 +560,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
 
       <ul className="mt-5 space-y-2.5">
         <li className="flex gap-2.5"><Clock className="mt-0.5 size-4.5 shrink-0 text-accent-strong" aria-hidden />
-          {fmtWhen(e.start)}–{fmtTime(end)}</li>
+          {fmtSpan(e.start, e.durationMin)}</li>
         <li className="flex gap-2.5"><MapPin className="mt-0.5 size-4.5 shrink-0 text-accent-strong" aria-hidden />
           <span>{e.venue}<span className="block text-sm text-muted">{e.address} · {fmtDistance(km)} away</span></span></li>
         <li className="flex gap-2.5"><Ticket className="mt-0.5 size-4.5 shrink-0 text-accent-strong" aria-hidden />{e.cost}</li>
@@ -670,7 +669,7 @@ function PersonDetail({ person: p, events, km, onClose, asked, onAsk, onEvent }:
           <li key={e.id}>
             <button type="button" onClick={() => onEvent(e)} className="w-full rounded-2xl border border-line bg-surface p-3 text-left transition hover:border-brand/50">
               <span className="block font-bold leading-snug">{e.title}</span>
-              <span className="text-sm text-muted">{fmtWhen(e.start)} · {placeOf(e)}</span>
+              <span className="text-sm text-muted">{fmtWhen(e.start, e.durationMin)} · {placeOf(e)}</span>
             </button>
           </li>
         ))}

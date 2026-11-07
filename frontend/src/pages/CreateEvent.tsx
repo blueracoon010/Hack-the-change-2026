@@ -8,27 +8,28 @@ import { Alert, Button, Card, cx, Field, PageHeader, Segmented } from '../compon
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import {
-  CATEGORIES, fmtWhen, fromCalgaryInput, toCalgaryInput,
+  calgaryDay, CATEGORIES, fmtDay, fromCalgaryInput,
   type ApiEvent, type Category, type LatLng, type Vibe, type Visibility,
 } from '../lib/nexus'
 
 const ALL_CATS = Object.keys(CATEGORIES) as Category[]
 const MAX_CATS = 3
-const DURATIONS = [{ value: 60, label: '1 hour' }, { value: 90, label: '1.5 hours' }, { value: 120, label: '2 hours' }, { value: 180, label: '3 hours' }, { value: 240, label: '4 hours' }, { value: 480, label: 'All day' }]
+const MAX_DAYS = 7
 
-/** Tomorrow at 6 pm, Calgary time. */
-function defaultStart() {
-  const d = new Date(Date.now() + 24 * 3600_000)
-  return `${toCalgaryInput(d).slice(0, 10)}T18:00`
-}
+/** "2026-11-08" (Calgary) -> that day at midnight, Calgary time. */
+const dayStart = (day: string) => fromCalgaryInput(`${day}T00:00`)
+/** Days from `from` to `to`, counting both ends: Nov 8 to Nov 8 is 1 day. */
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1
+const addDays = (day: string, n: number) => new Date(Date.parse(day) + n * 86_400_000).toISOString().slice(0, 10)
+const tomorrow = () => calgaryDay(new Date(Date.now() + 24 * 3600_000))
 
 export default function CreateEvent() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [start, setStart] = useState(defaultStart)
-  const [duration, setDuration] = useState(120)
+  const [from, setFrom] = useState(tomorrow)
+  const [to, setTo] = useState(tomorrow)
   const [venue, setVenue] = useState('')
   const [address, setAddress] = useState('')
   const [position, setPosition] = useState<LatLng | null>(null)
@@ -45,9 +46,11 @@ export default function CreateEvent() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!start) return setError('Pick a date and time.')
-    const when = fromCalgaryInput(start)
-    if (when.getTime() < Date.now()) return setError('That time has already passed. Pick a time in the future.')
+    if (!from || !to) return setError('Pick the dates your event runs.')
+    if (from < calgaryDay(new Date())) return setError('That date has already passed. Pick today or later.')
+    const days = daysBetween(from, to)
+    if (days < 1) return setError('The end date can’t be before the start date.')
+    if (days > MAX_DAYS) return setError(`Events can run for up to ${MAX_DAYS} days.`)
     if (!address.trim() && !position) return setError('Add an address, or tap the map to drop a pin.')
     setSaving(true)
     try {
@@ -59,8 +62,8 @@ export default function CreateEvent() {
           host: user?.name,
           categories: cats,
           vibe,
-          start: when.toISOString(),
-          durationMin: duration,
+          start: dayStart(from).toISOString(),
+          durationMin: days * 24 * 60,
           venue: venue.trim() || undefined,
           address: address.trim() || undefined,
           position: position ?? undefined,
@@ -97,16 +100,13 @@ export default function CreateEvent() {
 
         <Card>
           <SectionTitle>When</SectionTitle>
-          <div className="grid gap-4 sm:grid-cols-[1.4fr_1fr]">
-            <Field label="Date and time (Calgary time)" type="datetime-local" required value={start} onChange={(e) => setStart(e.target.value)}
-              hint={start ? fmtWhen(fromCalgaryInput(start)) : undefined} />
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-bold">How long</span>
-              <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 outline-none focus:border-brand focus:ring-4 focus:ring-brand/15">
-                {DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-              </select>
-            </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="From" type="date" required min={calgaryDay(new Date())} value={from}
+              onChange={(e) => { const v = e.target.value; setFrom(v); if (v && (!to || to < v)) setTo(v) }}
+              hint={from ? fmtDay(dayStart(from)) : undefined} />
+            <Field label="To" type="date" required min={from || undefined} max={from ? addDays(from, MAX_DAYS - 1) : undefined} value={to}
+              onChange={(e) => setTo(e.target.value)}
+              hint={from && to && daysBetween(from, to) >= 1 ? (daysBetween(from, to) === 1 ? 'One day' : `${daysBetween(from, to)} days`) : undefined} />
           </div>
         </Card>
 
