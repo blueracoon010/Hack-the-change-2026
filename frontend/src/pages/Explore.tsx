@@ -47,7 +47,6 @@ export default function Explore() {
   const { data: apiEvents, error: eventsError, loading: eventsLoading, reload: reloadEvents } =
     useApi<ApiEvent[]>('/api/events?limit=500', { refreshMs: 5 * 60_000 })
   const allEvents = useMemo(() => (apiEvents ?? []).map(fromApi), [apiEvents])
-  const { data: feed } = useApi<FeedStatus>('/api/events/status', { refreshMs: 5 * 60_000 })
 
   // Per-user actions. RSVP and "find a buddy" are saved to the backend; saved/reminders are local for now.
   const [rsvps, setRsvps] = useState<Set<string>>(new Set())
@@ -154,7 +153,6 @@ export default function Explore() {
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Calgary · your neighbourhood</p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{mode === 'events' ? 'What’s on around you' : 'Your people'}</h1>
-            {mode === 'events' && <FeedLine feed={feed} />}
           </div>
           <div role="tablist" aria-label="What to show on the map" className="inline-flex rounded-full border border-line bg-surface p-1 shadow-sm">
             <ModeTab active={mode === 'events'} onClick={() => switchMode('events')} icon={<CalendarDays className="size-4.5" aria-hidden />}
@@ -333,31 +331,6 @@ export default function Explore() {
 }
 
 // ---------------- pieces ----------------
-
-/** GET /api/events/status. `fingerprint` is the same on two machines when they show the same events. */
-type FeedStatus = {
-  sources: { source: string; configured: boolean; events: number }[]
-  lastSync: string | null
-  upcomingEvents: number
-  fingerprint: string
-}
-
-function ago(iso: string) {
-  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
-  return min < 1 ? 'just now' : min < 60 ? `${min} min ago` : `${Math.round(min / 60)} h ago`
-}
-
-/** Transparency: where the events come from and how fresh they are. */
-function FeedLine({ feed }: { feed: FeedStatus | null }) {
-  if (!feed) return null
-  const live = feed.sources.filter((s) => s.configured && s.events > 0 && s.source !== 'community').map((s) => SOURCE_LABEL[s.source as keyof typeof SOURCE_LABEL] ?? s.source)
-  return (
-    <p className="mt-1 text-xs font-semibold text-muted" title={`Dataset ${feed.fingerprint}: two devices showing the same code are showing the same events`}>
-      {live.length ? `Live from ${live.join(', ')} + community posts` : 'Community posts only (no live source connected)'}
-      {feed.lastSync && ` · updated ${ago(feed.lastSync)}`} · {feed.upcomingEvents} upcoming · set {feed.fingerprint.slice(0, 6)}
-    </p>
-  )
-}
 
 function Divider() {
   return <span className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden />
