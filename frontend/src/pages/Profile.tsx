@@ -115,7 +115,7 @@ export default function Profile() {
               : 'Private: other members only see your name. Friends you invite can still connect with you.'}</p>
           </div>
           <div aria-busy={visBusy}><Segmented label="Profile visibility" value={account.discoverable ? 'public' : 'private'} onChange={v => setPublic(v === 'public')}
-            options={[{ value: 'public', label: '🌍 Public' }, { value: 'private', label: '🔒 Private' }]} /></div>
+            options={[{ value: 'public', label: 'Public' }, { value: 'private', label: 'Private' }]} /></div>
         </div>
       </Card>}
       <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
