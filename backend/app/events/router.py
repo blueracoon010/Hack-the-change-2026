@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlmodel import Session, delete, func, select
+from sqlmodel import Session, delete, func, select, cast, Integer
 
 from ..config import settings
 from ..db import get_session
@@ -82,7 +82,7 @@ def rsvp_counts(session: Session, ids: list[int]) -> dict[int, tuple[int, int]]:
     if not ids:
         return {}
     rows = session.exec(
-        select(EventRsvp.event_id, func.count(), func.sum(EventRsvp.looking_for_buddy))
+        select(EventRsvp.event_id, func.count(), func.sum(cast(EventRsvp.looking_for_buddy, Integer)))
         .where(EventRsvp.event_id.in_(ids)).group_by(EventRsvp.event_id)
     ).all()
     return {eid: (n, int(b or 0)) for eid, n, b in rows}
