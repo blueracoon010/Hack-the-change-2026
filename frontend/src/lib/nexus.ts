@@ -97,8 +97,6 @@ export const VIBES: Record<Vibe, { label: string; short: string; hint: string }>
   either: { label: 'Either', short: 'Mixed', hint: 'Come for the activity, talk as much as you like' },
 }
 
-export const LANGUAGES = ['English', 'Français', 'Español', 'ਪੰਜਾਬੀ', 'Tagalog', '中文', 'العربية', 'Українська', 'Tiếng Việt']
-
 /** Downtown Calgary. Used when we don't have the user's location. */
 export const CALGARY_CENTER: LatLng = { lat: 51.0447, lng: -114.0719 }
 

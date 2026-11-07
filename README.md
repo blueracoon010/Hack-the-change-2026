@@ -23,8 +23,6 @@ Nexus is a community-events app for Calgary, built for Code the Change YYC 2026.
 | **Profiles & invites** | Public or private profile, interests, invite friends with a code or link. |
 | **Accessible** | Light and dark mode, text size, high contrast, reduced motion, keyboard navigation and screen-reader labels. |
 
-**Still in progress:** *Scan a flyer* (photo → events on the map) and *AI translation* of event details have their screens built, but they aren't connected to a backend yet.
-
 ## How it's built
 
 | Folder | What it is |

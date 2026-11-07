@@ -2,18 +2,18 @@
 // filter events by type and social energy, and open any pin or card for details, RSVP and "find a buddy".
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
-  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Camera, Check, Clock, ExternalLink, Footprints, Globe, HandHeart, LocateFixed,
+  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Check, Clock, ExternalLink, Footprints, Globe, HandHeart, LocateFixed,
   Lock, MapPin, Search, Sparkles, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
 import { EventBuddies } from '../components/BuddyPreferences'
-import { Button, cx, Segmented } from '../components/ui'
+import { cx, Segmented } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
 import { api } from '../lib/api'
 import {
-  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtSpan, fmtWhen, fromApi, initials, LANGUAGES, SOURCE_LABEL, VIBES,
+  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtSpan, fmtWhen, fromApi, initials, SOURCE_LABEL, VIBES,
   type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
 } from '../lib/nexus'
 
@@ -26,7 +26,7 @@ const ALL_CATS = Object.keys(CATEGORIES) as Category[]
 
 /** "Hillhurst Sunnyside Community Association" → "Hillhurst Sunnyside" */
 const neighbourhoodOf = (host: string) => host.replace(/\s+(Creekside\s+)?(Community|Communities|Neighbourhoods?)\s+Association$/i, '')
-/** Ticketmaster / Meetup hosts are promoters, so show the venue; flyers show the neighbourhood. */
+/** Ticketmaster / Meetup hosts are promoters, so show the venue; community events fall back to the neighbourhood. */
 const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : e.venue || neighbourhoodOf(e.host))
 
 export default function Explore() {
@@ -45,7 +45,6 @@ export default function Explore() {
   const [userPos, setUserPos] = useState<LatLng | null>(null)
   const [mapOrigin, setMapOrigin] = useState<LatLng | null>(null)
   const [locating, setLocating] = useState(false)
-  const [scanOpen, setScanOpen] = useState(false)
   const sideRef = useRef<HTMLDivElement>(null)
 
   // Live events from the backend (Ticketmaster, Meetup, community posts). Refreshes every 5 minutes.
@@ -220,9 +219,6 @@ export default function Explore() {
             className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2.5 font-bold shadow-sm transition hover:bg-surface-2 disabled:opacity-60">
             <LocateFixed className={cx('size-4.5', locating && 'animate-spin')} aria-hidden /> Near me
           </button>
-          <button type="button" onClick={() => setScanOpen(true)} className="btn-primary inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-bold">
-            <Camera className="size-4.5" aria-hidden /> Scan a flyer
-          </button>
         </div>
 
         {mode === 'events' && <div className="flex flex-wrap items-center gap-3">
@@ -384,8 +380,6 @@ export default function Explore() {
           </div>
         </div>
       </div>
-
-      <ScanDialog open={scanOpen} onClose={() => setScanOpen(false)} />
     </div>
   )
 }
@@ -540,7 +534,6 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
   const f = forecastFor(weather, e.start)
   const tip = weatherTip(f, e.indoor)
   const friends = people.filter((p) => p.goingTo.includes(e.id))
-  const [lang, setLang] = useState('English')
 
   return (
     <DetailCard label={`Event details: ${e.title}`} backLabel={backLabel} onClose={onClose}>
@@ -618,22 +611,8 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
         )}
       </div>
 
-      <div className="mt-6 flex items-center gap-2 border-t border-line pt-5 text-sm">
-        <Globe className="size-4 shrink-0 text-accent-strong" aria-hidden />
-        <label htmlFor="read-in" className="font-bold">Read in</label>
-        <select id="read-in" value={lang} onChange={(ev) => setLang(ev.target.value)}
-          className="flex-1 rounded-full border border-line bg-surface px-3 py-1.5 outline-none focus:border-brand">
-          {LANGUAGES.map((l) => <option key={l}>{l}</option>)}
-        </select>
-      </div>
-      {lang !== 'English' && (
-        <p className="mt-2 text-xs text-muted">AI translation into {lang} appears here once the translate endpoint is connected.
-          {e.languages.includes(lang) && ' The host also speaks this language.'}</p>
-      )}
-      <p className="mt-3 text-xs text-muted">Hosts speak: {e.languages.join(', ')}</p>
-      {e.source && e.source !== 'community'
-        ? <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Globe className="size-3.5" aria-hidden /> Live listing from {SOURCE_LABEL[e.source]}</p>
-        : <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Camera className="size-3.5" aria-hidden /> From a flyer at {e.scannedFrom}</p>}
+      <p className="mt-6 border-t border-line pt-5 text-xs text-muted">Hosts speak: {e.languages.join(', ')}</p>
+      {e.source && e.source !== 'community' && <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Globe className="size-3.5" aria-hidden /> Live listing from {SOURCE_LABEL[e.source]}</p>}
     </DetailCard>
   )
 }
@@ -681,44 +660,5 @@ function PersonDetail({ person: p, events, km, onClose, asked, onAsk, onEvent }:
         </button>
       )}
     </DetailCard>
-  )
-}
-
-function ScanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  useEffect(() => {
-    const d = ref.current
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    if (!open && d.open) d.close()
-  }, [open])
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
-
-  return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="scan-title"
-      className="m-auto w-[min(32rem,calc(100%-2rem))] rounded-3xl border border-line bg-surface p-6 text-fg shadow-2xl backdrop:bg-black/50">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 id="scan-title" className="text-xl font-extrabold">Scan a flyer</h2>
-          <p className="mt-1 text-sm text-muted">Photograph one flyer or a whole bulletin board. Nexus reads the details and puts each event on the map.</p>
-        </div>
-        <button type="button" onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg">
-          <X className="size-5" aria-hidden />
-        </button>
-      </div>
-      <label className="mt-5 flex cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed border-line bg-surface-2 p-6 text-center hover:border-brand">
-        {preview
-          ? <img src={preview} alt="Flyer to scan" className="max-h-64 rounded-xl object-contain" />
-          : <><Camera className="size-8 text-brand-strong" aria-hidden /><span className="font-bold">Take or choose a photo</span><span className="text-sm text-muted">JPG or PNG</span></>}
-        <input type="file" accept="image/*" capture="environment" className="sr-only"
-          onChange={(ev) => { const file = ev.target.files?.[0]; if (file) setPreview(URL.createObjectURL(file)) }} />
-      </label>
-      <p className="mt-4 text-xs text-muted">The photo is sent to the flyer-reading endpoint (POST /api/flyers) once the backend is connected.</p>
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button disabled={!preview} title="Coming soon: needs the backend endpoint">Extract events</Button>
-      </div>
-    </dialog>
   )
 }
