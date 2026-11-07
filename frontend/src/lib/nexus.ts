@@ -1,6 +1,6 @@
 // Nexus domain types, filter metadata and sample data.
-// The sample data stands in for what the flyer-scanning AI will produce. Swap `SAMPLE_EVENTS` / `SAMPLE_PEOPLE`
-// for API calls (e.g. useApi<NexusEvent[]>('/api/events')) once the backend routes exist.
+// Events are LIVE from the backend (GET /api/events, see backend/app/events/README.md) via `fromApi` below.
+// SAMPLE_PEOPLE is still sample data until the people/connections routes exist.
 import type { LucideIcon } from 'lucide-react'
 import { Cpu, Dumbbell, HeartHandshake, Palette, Soup, Sprout, Trees, Users, Baby, GraduationCap } from 'lucide-react'
 
@@ -11,9 +11,6 @@ export type Vibe = 'introvert' | 'extrovert' | 'either'
 export type LatLng = { lat: number; lng: number }
 
 export type NexusEvent = {
-  source?: 'ticketmaster' | 'meetup' | 'community'
-  url?: string | null
-  meGoing?: boolean
   id: string
   title: string
   host: string // usually a community association
@@ -31,10 +28,33 @@ export type NexusEvent = {
   languages: string[] // languages the flyer / host supports
   description: string
   scannedFrom: string // where the flyer was photographed
+  // Set for live events from the backend:
+  source?: 'ticketmaster' | 'meetup' | 'community'
+  url?: string | null // tickets / RSVP on the source site
+  imageUrl?: string | null
+  meGoing?: boolean
+  meLookingForBuddy?: boolean
 }
 
-export type ApiEvent = Omit<NexusEvent, 'start'> & { start: string }
-export const fromApi = (event: ApiEvent): NexusEvent => ({ ...event, start: new Date(event.start) })
+/** One event as GET /api/events returns it (dates are ISO strings). */
+export type ApiEvent = Omit<NexusEvent, 'start' | 'categories'> & {
+  start: string
+  end: string | null
+  categories: string[]
+  isOnline: boolean
+  distanceKm: number | null
+  mine: boolean
+}
+
+/** API event -> NexusEvent (parses the date, drops categories the UI doesn't know). */
+export function fromApi(e: ApiEvent): NexusEvent {
+  return { ...e, start: new Date(e.start), categories: e.categories.filter((c): c is Category => c in CATEGORIES) }
+}
+
+/** Where a live event came from, for the "Listed on …" credit. */
+export const SOURCE_LABEL: Record<NonNullable<NexusEvent['source']>, string> = {
+  ticketmaster: 'Ticketmaster', meetup: 'Meetup', community: 'Nexus community',
+}
 
 export type Relation = 'following' | 'connection'
 
@@ -91,14 +111,21 @@ export function fmtDistance(km: number) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
 }
 
-const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+/** Every date in the app is shown in Calgary time, whatever time zone the laptop is set to, so all devices agree. */
+export const TIME_ZONE = 'America/Edmonton'
+
+/** Calendar day in Calgary, e.g. "2026-11-07". Use this instead of toDateString() for "today" checks. */
+export const calgaryDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: TIME_ZONE })
+
+export const fmtTime = (d: Date) => d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: TIME_ZONE })
+
+const sameDay = (a: Date, b: Date) => calgaryDay(a) === calgaryDay(b)
 
 export function fmtWhen(d: Date, now = new Date()) {
-  const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })
+  const time = fmtTime(d)
   if (sameDay(d, now)) return `Today · ${time}`
-  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
-  if (sameDay(d, tomorrow)) return `Tomorrow · ${time}`
-  return `${d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })} · ${time}`
+  if (sameDay(d, new Date(now.getTime() + 24 * 3600_000))) return `Tomorrow · ${time}`
+  return `${d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TIME_ZONE })} · ${time}`
 }
 
 export function initials(name: string) {

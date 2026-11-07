@@ -1,5 +1,6 @@
 """/api/events endpoints for the map. Interactive docs: http://localhost:8000/docs#/events"""
 
+import hashlib
 import math
 from datetime import datetime, timedelta
 
@@ -43,7 +44,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * 6371 * math.asin(math.sqrt(a))
 
 
-def to_out(e: Event, counts: dict[int, tuple[int, int]], mine_rsvp: set[int], user_id: int | None,
+def to_out(e: Event, counts: dict[int, tuple[int, int]], mine_rsvp: dict[int, bool], user_id: int | None,
            here: tuple[float, float] | None) -> EventOut:
     going, buddy = counts.get(e.id, (0, 0))
     duration = int((e.end - e.start).total_seconds() // 60) if e.end and e.end > e.start else DEFAULT_DURATION_MIN
@@ -72,6 +73,7 @@ def to_out(e: Event, counts: dict[int, tuple[int, int]], mine_rsvp: set[int], us
         is_online=e.is_online,
         distance_km=round(haversine_km(here[0], here[1], e.lat, e.lon), 2) if here and e.lat is not None else None,
         me_going=e.id in mine_rsvp,
+        me_looking_for_buddy=mine_rsvp.get(e.id, False),
         mine=user_id is not None and e.created_by == user_id,
     )
 
@@ -121,13 +123,13 @@ def list_events(
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(func.lower(Event.title).like(like) | func.lower(Event.host).like(like) | func.lower(Event.venue_name).like(like))
-    rows = session.exec(stmt.order_by(Event.start).limit(limit * 3 if (category or radius_km) else limit)).all()
+    rows = session.exec(stmt.order_by(Event.start, Event.id).limit(limit * 3 if (category or radius_km) else limit)).all()
     if category:
         rows = [r for r in rows if set(r.categories.split(",")) & set(category)]
 
     here = (lat, lng) if lat is not None and lng is not None else None
     counts = rsvp_counts(session, [r.id for r in rows])
-    mine = set(session.exec(select(EventRsvp.event_id).where(EventRsvp.user_id == user_id)).all()) if user_id else set()
+    mine = dict(session.exec(select(EventRsvp.event_id, EventRsvp.looking_for_buddy).where(EventRsvp.user_id == user_id)).all()) if user_id else {}
     out = [to_out(r, counts, mine, user_id, here) for r in rows]
     if here:
         if radius_km:
@@ -168,7 +170,20 @@ def sources_status(session: Session = Depends(get_session)) -> dict:
         })
     community = session.exec(select(func.count()).select_from(Event).where(Event.source == "community")).one()
     out.append({"source": "community", "configured": True, "events": community})
-    return {"sources": out, "syncEveryMinutes": settings.events_sync_minutes}
+
+    # Compare two machines: same fingerprint = same upcoming events on the map (ignores RSVPs and sync time).
+    now = utcnow()
+    keys = sorted(f"{src}:{sid}" for src, sid in session.exec(
+        select(Event.source, Event.source_id).where(Event.start >= now - timedelta(hours=3), Event.is_online == False)  # noqa: E712
+    ).all())
+    last = session.exec(select(func.max(SyncRun.finished_at)).where(SyncRun.ok == True)).one()  # noqa: E712
+    return {
+        "sources": out,
+        "syncEveryMinutes": settings.events_sync_minutes,
+        "lastSync": iso_utc(last),
+        "upcomingEvents": len(keys),
+        "fingerprint": hashlib.sha1("\n".join(keys).encode()).hexdigest()[:10],
+    }
 
 
 @router.post("/sync")
@@ -185,8 +200,8 @@ def get_event(event_id: int, user_id: int | None = Depends(optional_user_id), se
     e = session.get(Event, event_id)
     if not e:
         raise HTTPException(404, "Event not found")
-    mine = {event_id} if user_id and session.get(EventRsvp, (event_id, user_id)) else set()
-    return to_out(e, rsvp_counts(session, [event_id]), mine, user_id, None)
+    r = session.get(EventRsvp, (event_id, user_id)) if user_id else None
+    return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy} if r else {}, user_id, None)
 
 
 @router.post("", response_model=EventOut, response_model_by_alias=True, status_code=201)
@@ -219,7 +234,7 @@ async def create_event(body: CommunityEventIn, user: User = Depends(get_current_
     session.add(e)
     session.commit()
     session.refresh(e)
-    return to_out(e, {}, set(), user.id, None)
+    return to_out(e, {}, {}, user.id, None)
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -243,7 +258,7 @@ def rsvp(event_id: int, body: RsvpIn, user: User = Depends(get_current_user), se
     r.looking_for_buddy = body.looking_for_buddy
     session.add(r)
     session.commit()
-    return to_out(e, rsvp_counts(session, [event_id]), {event_id}, user.id, None)
+    return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy}, user.id, None)
 
 
 @router.delete("/{event_id}/rsvp", response_model=EventOut, response_model_by_alias=True)
@@ -255,4 +270,4 @@ def cancel_rsvp(event_id: int, user: User = Depends(get_current_user), session: 
     if r:
         session.delete(r)
         session.commit()
-    return to_out(e, rsvp_counts(session, [event_id]), set(), user.id, None)
+    return to_out(e, rsvp_counts(session, [event_id]), {}, user.id, None)

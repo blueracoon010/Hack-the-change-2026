@@ -2,17 +2,16 @@
 // filter events by type and social energy, and open any pin or card for details, RSVP and "find a buddy".
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
-  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Camera, Check, Clock, Footprints, Globe, HandHeart, LocateFixed, MapPin,
-  Search, Ticket, UserPlus, Users, X,
+  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Camera, Check, Clock, ExternalLink, Footprints, Globe, HandHeart, LocateFixed,
+  MapPin, Search, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
 import { Button, cx, Segmented } from '../components/ui'
-import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
 import { useApi } from '../hooks/useApi'
+import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
 import { api } from '../lib/api'
-import { useAuth } from '../context/AuthContext'
 import {
-  CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtWhen, initials, LANGUAGES, SAMPLE_EVENTS, SAMPLE_PEOPLE, VIBES, fromApi,
+  calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtTime, fmtWhen, fromApi, initials, LANGUAGES, SAMPLE_PEOPLE, SOURCE_LABEL, VIBES,
   type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
 } from '../lib/nexus'
 
@@ -25,14 +24,15 @@ const ALL_CATS = Object.keys(CATEGORIES) as Category[]
 
 /** "Hillhurst Sunnyside Community Association" → "Hillhurst Sunnyside" */
 const neighbourhoodOf = (host: string) => host.replace(/\s+(Creekside\s+)?(Community|Communities|Neighbourhoods?)\s+Association$/i, '')
+/** Ticketmaster / Meetup hosts are promoters, so show the venue; flyers show the neighbourhood. */
+const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : neighbourhoodOf(e.host))
 
 export default function Explore() {
-  const { user, ready } = useAuth()
   const [mode, setMode] = useState<Mode>('events')
   const [query, setQuery] = useState('')
   const [cats, setCats] = useState<Set<Category>>(new Set())
   const [vibe, setVibe] = useState<Vibe | 'all'>('all')
-  const [when, setWhen] = useState<When>('all')
+  const [when, setWhen] = useState<When>('week')
   const [sort, setSort] = useState<Sort>('near')
   const [relation, setRelation] = useState<Relation | 'all'>('all')
   const [buddyOnly, setBuddyOnly] = useState(false)
@@ -43,32 +43,51 @@ export default function Explore() {
   const [scanOpen, setScanOpen] = useState(false)
   const sideRef = useRef<HTMLDivElement>(null)
 
-  // Saved events and reminder previews are local; RSVPs use authenticated endpoints.
-  const [actionMessage, setActionMessage] = useState('')
-  const [rsvpBusy, setRsvpBusy] = useState(false)
+  // Live events from the backend (Ticketmaster, Meetup, community posts). Refreshes every 5 minutes.
+  const { data: apiEvents, error: eventsError, loading: eventsLoading, reload: reloadEvents } =
+    useApi<ApiEvent[]>('/api/events?limit=500', { refreshMs: 5 * 60_000 })
+  const allEvents = useMemo(() => (apiEvents ?? []).map(fromApi), [apiEvents])
+  const { data: feed } = useApi<FeedStatus>('/api/events/status', { refreshMs: 5 * 60_000 })
+
+  // Per-user actions. RSVP and "find a buddy" are saved to the backend; saved/reminders are local for now.
+  const [rsvps, setRsvps] = useState<Set<string>>(new Set())
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [buddyAsks, setBuddyAsks] = useState<Set<string>>(new Set())
   const [reminders, setReminders] = useState<Set<string>>(new Set())
   const toggle = (set: SetToggle, id: string) =>
     set((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const setHas = (set: SetToggle, id: string, on: boolean) =>
+    set((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n })
+
+  // Take my RSVPs from the server whenever events load.
+  useEffect(() => {
+    if (!apiEvents) return
+    const ids = new Set(apiEvents.map((e) => e.id))
+    setRsvps(new Set(apiEvents.filter((e) => e.meGoing).map((e) => e.id)))
+    setBuddyAsks((prev) => new Set([...[...prev].filter((id) => !ids.has(id)), ...apiEvents.filter((e) => e.meLookingForBuddy).map((e) => e.id)]))
+  }, [apiEvents])
+
+  async function saveRsvp(id: string, going: boolean, buddy: boolean) {
+    try {
+      await api(`/api/events/${id}/rsvp`, going ? { method: 'PUT', body: { lookingForBuddy: buddy } } : { method: 'DELETE' })
+    } finally {
+      reloadEvents() // real going / buddy counts
+    }
+  }
+  const rsvpEvent = (id: string) => {
+    const going = !rsvps.has(id)
+    setHas(setRsvps, id, going)
+    if (!going) setHas(setBuddyAsks, id, false)
+    void saveRsvp(id, going, going && buddyAsks.has(id))
+  }
+  const buddyEvent = (id: string) => {
+    const buddy = !buddyAsks.has(id)
+    setHas(setBuddyAsks, id, buddy)
+    if (buddy) setHas(setRsvps, id, true) // asking for a buddy means you're going
+    void saveRsvp(id, buddy || rsvps.has(id), buddy)
+  }
 
   const origin = userPos ?? CALGARY_CENTER
-  const feed = useApi<ApiEvent[]>(`/api/events?lat=${origin.lat}&lng=${origin.lng}&limit=200`, { refreshMs: 5 * 60_000 })
-  const status = useApi<{ sources: { source: string; configured: boolean; events: number; lastOk?: boolean | null }[] }>('/api/events/status', { refreshMs: 60_000 })
-  const allEvents = useMemo(() => (feed.data ?? []).map(fromApi), [feed.data])
-  const rsvps = useMemo(() => new Set(allEvents.filter(e => e.meGoing).map(e => e.id)), [allEvents])
-  useEffect(() => { if (ready) feed.reload() }, [ready, user?.id])
-  async function saveRsvp(event: NexusEvent, wantsBuddy: boolean, cancel: boolean) {
-    if (!user) { setActionMessage('Sign in to RSVP or request a buddy.'); return }
-    if (rsvpBusy) return
-    setRsvpBusy(true); setActionMessage('')
-    try {
-      await api(`/api/events/${event.id}/rsvp`, { method: cancel ? 'DELETE' : 'PUT', body: cancel ? undefined : { lookingForBuddy: wantsBuddy } })
-      setBuddyAsks(prev => { const next = new Set(prev); if (wantsBuddy && !cancel) next.add(event.id); else next.delete(event.id); return next })
-      await feed.reload()
-      setActionMessage(cancel ? 'RSVP cancelled.' : 'RSVP saved.')
-    } catch (e) { setActionMessage((e as Error).message) } finally { setRsvpBusy(false) }
-  }
   const q = query.trim().toLowerCase()
 
   const events = useMemo(() => {
@@ -77,7 +96,7 @@ export default function Explore() {
     return allEvents
       .filter((e) => cats.size === 0 || e.categories.some((c) => cats.has(c)))
       .filter((e) => vibe === 'all' || e.vibe === vibe)
-      .filter((e) => when === 'all' || (when === 'today' ? e.start.toDateString() === now.toDateString() : e.start <= weekOut))
+      .filter((e) => when === 'all' || (when === 'today' ? calgaryDay(e.start) === calgaryDay(now) : e.start <= weekOut))
       .filter((e) => !q || [e.title, e.host, e.venue, e.description].some((s) => s.toLowerCase().includes(q)))
       .map((e) => ({ ...e, km: distanceKm(origin, e.position) }))
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
@@ -123,8 +142,8 @@ export default function Explore() {
     )
   }
 
-  const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'all'
-  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('all') }
+  const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week'
+  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week') }
   const count = mode === 'events' ? events.length : people.length
 
   return (
@@ -135,6 +154,7 @@ export default function Explore() {
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Calgary · your neighbourhood</p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{mode === 'events' ? 'What’s on around you' : 'Your people'}</h1>
+            {mode === 'events' && <FeedLine feed={feed} />}
           </div>
           <div role="tablist" aria-label="What to show on the map" className="inline-flex rounded-full border border-line bg-surface p-1 shadow-sm">
             <ModeTab active={mode === 'events'} onClick={() => switchMode('events')} icon={<CalendarDays className="size-4.5" aria-hidden />}
@@ -225,15 +245,6 @@ export default function Explore() {
           )}
         </div>
 
-        <div className="text-sm text-muted" aria-live="polite">
-          {mode === 'people' ? 'People and their attendance are demo previews; manage real connections under Profile.' : <>
-            {feed.loading && 'Loading events… '}
-            {feed.error ? <span role="alert">{feed.error.message} <button type="button" onClick={feed.reload} className="font-bold underline">Retry</button></span> : <span>Live backend listings · {status.data?.sources.filter(s => s.configured).map(s => `${s.source}: ${s.events}${s.lastOk === false ? ' (latest sync failed)' : ''}`).join(' · ') || 'Checking sources…'}</span>}
-            {status.data && !status.data.sources.some(s => s.source === 'ticketmaster' && s.configured) && <span> · Ticketmaster key is not configured on the backend.</span>}
-          </>}
-          {actionMessage && <p role="status">{actionMessage}</p>}
-          {rsvpBusy && <p role="status">Saving RSVP…</p>}
-        </div>
         {/* Map card | cards */}
         <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <section aria-labelledby="map-title" className="flex h-[60vh] min-h-80 flex-col rounded-3xl border border-line bg-surface/85 p-4 shadow-sm backdrop-blur md:p-5 lg:h-auto lg:min-h-0">
@@ -262,14 +273,14 @@ export default function Explore() {
           <div ref={sideRef} className="flex scroll-mt-4 flex-col lg:min-h-0">
             {selectedEvent ? (
               <EventDetail event={selectedEvent} km={distanceKm(origin, selectedEvent.position)} onClose={() => setSelected(null)}
-                going={rsvps.has(selectedEvent.id)} onRsvp={() => saveRsvp(selectedEvent, false, rsvps.has(selectedEvent.id))}
-                buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => saveRsvp(selectedEvent, !buddyAsks.has(selectedEvent.id), false)}
+                going={rsvps.has(selectedEvent.id)} onRsvp={() => rsvpEvent(selectedEvent.id)}
+                buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => buddyEvent(selectedEvent.id)}
                 reminder={reminders.has(selectedEvent.id)} onReminder={() => toggle(setReminders, selectedEvent.id)}
                 saved={saved.has(selectedEvent.id)} onSave={() => toggle(setSaved, selectedEvent.id)}
                 backLabel={mode === 'events' ? 'All events' : 'All people'}
                 onPerson={(p) => { setMode('people'); select({ kind: 'person', id: p.id }, p.position) }} />
             ) : selectedPerson ? (
-              <PersonDetail person={selectedPerson} km={distanceKm(origin, selectedPerson.position)} onClose={() => setSelected(null)}
+              <PersonDetail person={selectedPerson} events={allEvents} km={distanceKm(origin, selectedPerson.position)} onClose={() => setSelected(null)}
                 asked={buddyAsks.has(selectedPerson.id)} onAsk={() => toggle(setBuddyAsks, selectedPerson.id)}
                 onEvent={(e) => select({ kind: 'event', id: e.id }, e.position)} />
             ) : (
@@ -297,9 +308,16 @@ export default function Explore() {
                     </li>
                   ))}
                   {count === 0 && (
-                    <li className="rounded-3xl border border-dashed border-line px-4 py-12 text-center text-muted">
-                      {feed.loading && mode === 'events' ? 'Loading events…' : 'Nothing matches yet.'}
-                      {mode === 'events' && filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}
+                    <li className="rounded-3xl border border-dashed border-line px-4 py-12 text-center text-muted" role={mode === 'events' && eventsError ? 'alert' : undefined}>
+                      {mode === 'events' && eventsError && !apiEvents ? (
+                        <>Couldn’t load events. {eventsError.message}
+                          <button type="button" onClick={reloadEvents} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Try again</button></>
+                      ) : mode === 'events' && eventsLoading && !apiEvents ? (
+                        'Finding events near you…'
+                      ) : (
+                        <>Nothing matches yet.
+                          {mode === 'events' && filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
+                      )}
                     </li>
                   )}
                 </ul>
@@ -315,6 +333,31 @@ export default function Explore() {
 }
 
 // ---------------- pieces ----------------
+
+/** GET /api/events/status. `fingerprint` is the same on two machines when they show the same events. */
+type FeedStatus = {
+  sources: { source: string; configured: boolean; events: number }[]
+  lastSync: string | null
+  upcomingEvents: number
+  fingerprint: string
+}
+
+function ago(iso: string) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000))
+  return min < 1 ? 'just now' : min < 60 ? `${min} min ago` : `${Math.round(min / 60)} h ago`
+}
+
+/** Transparency: where the events come from and how fresh they are. */
+function FeedLine({ feed }: { feed: FeedStatus | null }) {
+  if (!feed) return null
+  const live = feed.sources.filter((s) => s.configured && s.events > 0 && s.source !== 'community').map((s) => SOURCE_LABEL[s.source as keyof typeof SOURCE_LABEL] ?? s.source)
+  return (
+    <p className="mt-1 text-xs font-semibold text-muted" title={`Dataset ${feed.fingerprint}: two devices showing the same code are showing the same events`}>
+      {live.length ? `Live from ${live.join(', ')} + community posts` : 'Community posts only (no live source connected)'}
+      {feed.lastSync && ` · updated ${ago(feed.lastSync)}`} · {feed.upcomingEvents} upcoming · set {feed.fingerprint.slice(0, 6)}
+    </p>
+  )
+}
 
 function Divider() {
   return <span className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden />
@@ -366,7 +409,7 @@ function EventCard({ event: e, km, going, saved, onSave, onView }: {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-muted">
-            <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{neighbourhoodOf(e.host)}</span>
+            <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{placeOf(e)}</span>
             <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden />{fmtWhen(e.start)}</span>
             <span className="inline-flex items-center gap-1"><Ticket className="size-3.5" aria-hidden />{e.cost}</span>
           </p>
@@ -472,7 +515,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
 
       <ul className="mt-5 space-y-2.5">
         <li className="flex gap-2.5"><Clock className="mt-0.5 size-4.5 shrink-0 text-accent-strong" aria-hidden />
-          {fmtWhen(e.start)}–{end.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })}</li>
+          {fmtWhen(e.start)}–{fmtTime(end)}</li>
         <li className="flex gap-2.5"><MapPin className="mt-0.5 size-4.5 shrink-0 text-accent-strong" aria-hidden />
           <span>{e.venue}<span className="block text-sm text-muted">{e.address} · {fmtDistance(km)} away</span></span></li>
         <li className="flex gap-2.5"><Ticket className="mt-0.5 size-4.5 shrink-0 text-accent-strong" aria-hidden />{e.cost}</li>
@@ -488,7 +531,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
         </div>
       )}
 
-      <p className="mt-5 leading-relaxed">{e.description}</p>
+      {e.description && <p className="mt-5 leading-relaxed">{e.description}</p>}
 
       <div className="mt-5 rounded-2xl border border-line bg-surface p-4">
         <p className="flex items-center gap-2 font-bold"><Footprints className="size-4.5 text-brand-strong" aria-hidden />
@@ -521,6 +564,13 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-2.5 font-bold text-muted hover:bg-surface-2 hover:text-fg">
           {reminder ? <><BellRing className="size-4 text-brand-strong" aria-hidden /> Reminder set, with forecast</> : <><Bell className="size-4" aria-hidden /> Remind me the day before</>}
         </button>
+        {e.url && e.source && (
+          <a href={e.url} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-5 py-2.5 font-bold transition hover:bg-surface-2">
+            <Ticket className="size-4" aria-hidden /> {e.source === 'community' ? 'Event page' : `Tickets on ${SOURCE_LABEL[e.source]}`}
+            <ExternalLink className="size-3.5" aria-hidden /><span className="sr-only">(opens in your browser)</span>
+          </a>
+        )}
       </div>
 
       <div className="mt-6 flex items-center gap-2 border-t border-line pt-5 text-sm">
@@ -536,16 +586,17 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
           {e.languages.includes(lang) && ' The host also speaks this language.'}</p>
       )}
       <p className="mt-3 text-xs text-muted">Hosts speak: {e.languages.join(', ')}</p>
-      <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Camera className="size-3.5" aria-hidden /> Source: {e.scannedFrom || e.source || 'Community'}</p>
-      {e.url && /^https?:\/\//i.test(e.url) && <a href={e.url} target="_blank" rel="noreferrer" className="btn-primary mt-4 inline-flex rounded-full px-5 py-2.5 font-bold">Get tickets / view original listing ↗</a>}
+      {e.source && e.source !== 'community'
+        ? <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Globe className="size-3.5" aria-hidden /> Live listing from {SOURCE_LABEL[e.source]}</p>
+        : <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Camera className="size-3.5" aria-hidden /> From a flyer at {e.scannedFrom}</p>}
     </DetailCard>
   )
 }
 
-function PersonDetail({ person: p, km, onClose, asked, onAsk, onEvent }: {
-  person: Person; km: number; onClose: () => void; asked: boolean; onAsk: () => void; onEvent: (e: NexusEvent) => void
+function PersonDetail({ person: p, events, km, onClose, asked, onAsk, onEvent }: {
+  person: Person; events: NexusEvent[]; km: number; onClose: () => void; asked: boolean; onAsk: () => void; onEvent: (e: NexusEvent) => void
 }) {
-  const going = SAMPLE_EVENTS.filter((e) => p.goingTo.includes(e.id))
+  const going = events.filter((e) => p.goingTo.includes(e.id))
   return (
     <DetailCard label={`Profile: ${p.name}`} backLabel="All people" onClose={onClose}>
       <div className="flex items-center gap-4">
@@ -572,7 +623,7 @@ function PersonDetail({ person: p, km, onClose, asked, onAsk, onEvent }: {
           <li key={e.id}>
             <button type="button" onClick={() => onEvent(e)} className="w-full rounded-2xl border border-line bg-surface p-3 text-left transition hover:border-brand/50">
               <span className="block font-bold leading-snug">{e.title}</span>
-              <span className="text-sm text-muted">{fmtWhen(e.start)} · {neighbourhoodOf(e.host)}</span>
+              <span className="text-sm text-muted">{fmtWhen(e.start)} · {placeOf(e)}</span>
             </button>
           </li>
         ))}
