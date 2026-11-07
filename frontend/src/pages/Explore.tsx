@@ -204,9 +204,9 @@ export default function Explore() {
               <div className="shrink-0">
                 <Segmented label="Social energy" value={vibe} onChange={setVibe} options={[
                   { value: 'all', label: 'Any vibe' },
-                  { value: 'introvert', label: '🌙 Introvert' },
+                  { value: 'introvert', label: 'Introvert' },
                   { value: 'either', label: 'Mixed' },
-                  { value: 'extrovert', label: '🎉 Extrovert' },
+                  { value: 'extrovert', label: 'Extrovert' },
                 ]} />
               </div>
               <Divider />
@@ -352,8 +352,7 @@ function Tag({ children }: { children: ReactNode }) {
 }
 
 function VibeTag({ vibe }: { vibe: Vibe }) {
-  const icon = { introvert: '🌙', extrovert: '🎉', either: '🙂' }[vibe]
-  return <span title={VIBES[vibe].hint} className="rounded-full bg-brand-tint px-3 py-1 text-sm font-semibold text-brand-strong">{icon} {VIBES[vibe].label}</span>
+  return <span title={VIBES[vibe].hint} className="rounded-full bg-brand-tint px-3 py-1 text-sm font-semibold text-brand-strong">{VIBES[vibe].label}</span>
 }
 
 function SaveButton({ saved, onSave, label }: { saved: boolean; onSave: () => void; label: string }) {
