@@ -4,6 +4,7 @@ Free key, 5000 calls/day, 5/s. Venues come with lat/lon, so no geocoding needed.
 Paging limit: size * page must stay under 1000, so we read at most 5 pages of 200.
 """
 
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -30,6 +31,15 @@ def _parse_dt(dates: dict, key: str) -> datetime | None:
     return None
 
 
+def clean(text: str | None) -> str | None:
+    """Some Ticketmaster titles arrive double-encoded, e.g. 'Whethan \u00c2\x80\x93 Tour' for 'Whethan – Tour'.
+    Invisible control characters (U+0080-U+009F) never belong in a title: turn such runs into a dash."""
+    if not text:
+        return text
+    text = re.sub(r"[\u00c2\u00e2]?[\u0080-\u009f]+", " – ", text).replace("\u00c2\u00a0", " ")
+    return " ".join(text.split())
+
+
 def parse(ev: dict) -> EventIn | None:
     start = _parse_dt(ev.get("dates", {}), "start")
     if not start:
@@ -51,7 +61,7 @@ def parse(ev: dict) -> EventIn | None:
     return EventIn(
         source=NAME,
         source_id=ev["id"],
-        title=ev.get("name", "Untitled event"),
+        title=clean(ev.get("name")) or "Untitled event",
         start=start,
         end=_parse_dt(ev.get("dates", {}), "end"),
         description=ev.get("info") or ev.get("pleaseNote"),

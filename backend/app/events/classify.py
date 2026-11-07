@@ -20,7 +20,8 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
 }
 
 INTROVERT_WORDS = ["small group", "quiet", "silent", "book club", "meditation", "yoga", "beginner", "workshop", "low pressure", "walk", "sketch", "knit", "study"]
-EXTROVERT_WORDS = ["concert", "party", "festival", "game", "mixer", "networking", "dance", "nightclub", "stadium", "tournament", "comedy", "live music", "rave"]
+EXTROVERT_WORDS = ["concert", "party", "festival", "game", "mixer", "networking", "dance", "nightclub", "stadium", "tournament", "comedy", "live music", "rave",
+                   "music", "tour", "hockey", "basketball", "football", "soccer", "lacrosse", "wrestling", " vs"]
 
 
 def _hits(text: str, words: list[str]) -> int:
