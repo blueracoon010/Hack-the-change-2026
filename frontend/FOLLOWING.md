@@ -42,3 +42,11 @@ Profile -> Go together stores server-side availability separately from social di
 General availability is not attendance. Any event can show you as available without creating RSVPs for unselected events. Saving preferences updates buddy flags only on existing RSVPs. Selected-event preferences and explicit event-level Find a buddy requests both contribute to availability. An explicit Find a buddy request can re-enable Selected mode after Off. An active Any event preference continues to apply until changed in Profile; turning off an event RSVP buddy flag alone does not turn off that general availability.
 
 The opened event details show a separate audience-filtered people list and a link back to preferences. The aggregate attendee buddy count continues to count RSVP flags, not every person generally open to going. People-map pins remain labeled demo data. No invitations/acceptance or direct messaging is implemented.
+
+## Attendance calendar
+
+Profile -> Calendar displays only your authenticated RSVPs, including past events, in Calgary time. It supports month navigation and a selected-day agenda; events spanning multiple days appear on each applicable day. Hosting an event alone does not count as attending it: RSVP to include it.
+
+`GET /api/events/attending` returns the signed-in user's visible RSVP events without the Explore feed's 30-day window. `GET /api/events/attending/calendar.ics` exports upcoming or in-progress visible RSVP events using UTC timestamps, escaped text, folded UTF-8 lines, and stable per-event UIDs. Cancelled RSVPs and events whose private access was revoked are excluded. Exports contain no attendee list or authentication tokens.
+
+Each agenda item has Add to Google Calendar, opening an event draft for the user to review/save. The bulk .ics export is imported on Google Calendar's website under Settings -> Import & export. These are one-time copies, not automatic synchronization; later changes or cancellations must be updated in the external calendar. Exported events are marked private, but users should still check the destination calendar's sharing settings. No Google OAuth connection or API key is required.

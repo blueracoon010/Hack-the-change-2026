@@ -217,6 +217,29 @@ def my_events(user: User = Depends(get_current_user), session: Session = Depends
     return [to_out(r, counts, mine, user.id, None) for r in rows]
 
 
+def attending_rows(user: User, session: Session):
+    return session.exec(select(Event).join(EventRsvp, EventRsvp.event_id == Event.id)
+                        .where(EventRsvp.user_id == user.id, visible_to(user.id, session))
+                        .order_by(Event.start, Event.id)).all()
+
+
+@router.get('/attending', response_model=list[EventOut], response_model_by_alias=True)
+def attending_events(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    rows = attending_rows(user, session)
+    mine = dict(session.exec(select(EventRsvp.event_id, EventRsvp.looking_for_buddy).where(EventRsvp.user_id == user.id)).all())
+    counts = rsvp_counts(session, [r.id for r in rows])
+    return [to_out(row, counts, mine, user.id, None) for row in rows]
+
+
+@router.get('/attending/calendar.ics')
+def export_attending(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    from .calendar import calendar_file
+    upcoming = [e for e in attending_rows(user, session)
+                if to_utc(e.end or (e.start + timedelta(hours=2))) > utcnow()]
+    return Response(calendar_file(upcoming), media_type='text/calendar; charset=utf-8',
+                    headers={'Content-Disposition': 'attachment; filename="nexus-upcoming.ics"', 'Cache-Control': 'no-store'})
+
+
 @router.post("/sync")
 async def sync_now(_: User = Depends(get_current_user)) -> dict:
     """Pull fresh events from every configured source right now (signed-in users only, to protect API quotas)."""

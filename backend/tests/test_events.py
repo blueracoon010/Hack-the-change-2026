@@ -134,3 +134,51 @@ def test_private_events_are_friends_only():
         # unfollowing ends the friendship, and with it access
         assert client.delete(f"/api/social/following/{host_id}", headers=friend).status_code == 204
         assert "Birthday picnic" not in titles(friend)
+
+def test_attendance_calendar_and_export():
+    with TestClient(app) as client:
+        host = _signup(client, 'calendar-host@example.com')
+        guest = _signup(client, 'calendar-guest@example.com')
+        other = _signup(client, 'calendar-other@example.com')
+        host_id, guest_id = _user_id(client, host), _user_id(client, guest)
+        client.put(f'/api/social/following/{guest_id}', headers=host)
+        client.put(f'/api/social/following/{host_id}', headers=guest)
+        soon = datetime.now(timezone.utc) + timedelta(days=60)
+        def create(title, start, visibility='public', duration=90):
+            r = client.post('/api/events', headers=host, json={'title': title, 'start': start.isoformat(), 'durationMin': duration, 'visibility': visibility, 'description': 'First line\nSecond; comma, slash \\ and café', 'venue': 'Library', 'position': {'lat': 51.04, 'lng': -114.07}})
+            assert r.status_code == 201, r.text
+            return r.json()['id']
+        public = create('Calendar: coffee, books; ' + 'é' * 40, soon)
+        private = create('Calendar private plan', soon + timedelta(days=1), 'private')
+        past = create('Calendar past plan', soon - timedelta(days=70))
+        only_other = create('Calendar someone else', soon + timedelta(days=2))
+        for event_id in (public, private, past):
+            assert client.put(f'/api/events/{event_id}/rsvp', headers=guest, json={}).status_code == 200
+        client.put(f'/api/events/{only_other}/rsvp', headers=other, json={})
+        assert client.get('/api/events/attending').status_code == 401
+        assert client.get('/api/events/attending/calendar.ics').status_code == 401
+        attending = client.get('/api/events/attending', headers=guest).json()
+        assert {e['id'] for e in attending} == {public, private, past}
+        assert all(e['meGoing'] for e in attending)
+        assert client.get('/api/events/attending', headers=host).json() == []
+        response = client.get('/api/events/attending/calendar.ics', headers=guest)
+        assert response.status_code == 200 and response.headers['content-type'].startswith('text/calendar')
+        assert response.headers['cache-control'] == 'no-store'
+        content = response.content.decode('utf-8')
+        assert content.endswith('END:VCALENDAR\r\n')
+        assert content.count('BEGIN:VEVENT') == 2
+        assert all(len(line.encode('utf-8')) <= 75 for line in content.split('\r\n'))
+        unfolded = content.replace('\r\n ', '')
+        assert 'SUMMARY:Calendar: coffee\\, books\\;' in unfolded
+        assert 'First line\\nSecond\\; comma\\, slash \\\\ and café' in unfolded
+        assert f'DTSTART:{soon.strftime("%Y%m%dT%H%M%SZ")}' in unfolded
+        assert f'DTEND:{(soon + timedelta(minutes=90)).strftime("%Y%m%dT%H%M%SZ")}' in unfolded
+        assert f'UID:nexus-event-{public}@nexus.local' in unfolded
+        assert 'Calendar past plan' not in unfolded and 'Calendar someone else' not in unfolded
+        # Cancelled attendance and revoked private-event access disappear from both views.
+        client.delete(f'/api/events/{public}/rsvp', headers=guest)
+        client.delete(f'/api/social/following/{host_id}', headers=guest)
+        assert {e['id'] for e in client.get('/api/events/attending', headers=guest).json()} == {past}
+        assert 'BEGIN:VEVENT' not in client.get('/api/events/attending/calendar.ics', headers=guest).text
+        for auth in (host, guest, other):
+            assert client.delete('/api/users/me', headers=auth).status_code == 204

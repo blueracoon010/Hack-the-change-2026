@@ -20,6 +20,7 @@ export function MyEvents() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-extrabold">My events</h2>
+          <Link to="/profile?section=calendar" className="text-sm font-bold text-brand-strong">View my attendance calendar →</Link>
           <p className="text-sm text-muted">Events you’re hosting. Public ones are on everyone’s map; friends-only ones just on your friends’.</p>
         </div>
         <Link to="/create" className="btn-primary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold">

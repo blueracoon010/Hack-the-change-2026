@@ -9,10 +9,10 @@ export class ApiError extends Error {
 let authToken: string | null = null
 export const setAuthToken = (t: string | null) => { authToken = t }
 
-type Options = { method?: string; body?: unknown }
+type Options = { method?: string; body?: unknown; responseType?: 'json' | 'text' }
 
 /** Typed fetch wrapper: `const user = await api<User>('/api/auth/me')`. Adds the auth token automatically. */
-export async function api<T>(path: string, { method = 'GET', body }: Options = {}): Promise<T> {
+export async function api<T>(path: string, { method = 'GET', body, responseType = 'json' }: Options = {}): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -27,6 +27,7 @@ export async function api<T>(path: string, { method = 'GET', body }: Options = {
     throw new ApiError(0, `Can't reach the server at ${API_URL}. Is the backend running?`)
   }
   if (res.status === 204) return undefined as T
+  if (res.ok && responseType === 'text') return await res.text() as T
   const data = await res.json().catch(() => null)
   if (!res.ok) throw new ApiError(res.status, errorMessage(data) ?? `Request failed (${res.status})`)
   return data as T

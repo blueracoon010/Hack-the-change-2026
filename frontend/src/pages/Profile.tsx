@@ -7,11 +7,13 @@ import { ConnectionsPanel } from '../components/ConnectionsPanel'
 import { SocialLinks } from '../components/SocialLinks'
 import { BuddyPreferences } from '../components/BuddyPreferences'
 import { MyEvents } from '../components/MyEvents'
+import Calendar from './Calendar'
 
 const interestIcons = [Footprints, BookOpen, Palette, Music, Trophy, Coffee]
 const sections = [
   { id: 'about', label: 'About me', icon: Heart },
   { id: 'events', label: 'My events', icon: CalendarDays },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { id: 'connections', label: 'Connections', icon: Users },
   { id: 'social', label: 'Social & invites', icon: Link2 },
   { id: 'buddy', label: 'Go together', icon: HandHeart },
@@ -45,6 +47,7 @@ export default function Profile() {
     <div role="status">{saved && <p className="flex items-center gap-2 text-sm text-success"><Check size={16} />{storageError ? 'Saved for this session only.' : 'Saved on this device.'}</p>}</div>
     <div className="flex gap-1 overflow-x-auto border-b border-line" role="group" aria-label="Profile sections">{sections.map(({ id, label, icon: Icon }) => <button type="button" key={id} aria-pressed={section === id} onClick={() => setSection(id)} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-bold transition ${section === id ? 'border-brand text-brand-strong' : 'border-transparent text-muted hover:text-fg'}`}><Icon size={17} />{label}</button>)}</div>
     <div hidden={section !== 'events'}><MyEvents /></div>
+    <div hidden={section !== 'calendar'}><Calendar /></div>
     <div hidden={section !== 'connections'}><ConnectionsPanel /></div>
     <div hidden={section !== 'social'}><SocialLinks /></div>
     <div hidden={section !== 'buddy'}><BuddyPreferences /></div>
