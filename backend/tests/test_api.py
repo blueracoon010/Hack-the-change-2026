@@ -120,3 +120,67 @@ def test_social_discovery_and_invitations():
         for auth in (auth_a, auth_b, auth_c):
             assert client.delete('/api/users/me', headers=auth).status_code == 204
         assert client.get(f'/api/social/invite/{token}').status_code == 404
+
+def test_buddy_preferences_and_audiences():
+    from datetime import datetime, timedelta, timezone
+    with TestClient(app) as client:
+        def signup(name):
+            r = client.post('/api/auth/signup', json={'name': name, 'email': f'{name}@example.com', 'password': 'correct-horse'})
+            assert r.status_code == 201, r.text
+            return r.json()['user']['id'], {'Authorization': f"Bearer {r.json()['access_token']}"}
+        a, auth_a = signup('BuddyA')
+        b, auth_b = signup('BuddyB')
+        c, auth_c = signup('BuddyC')
+        soon = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+        def create(title):
+            r = client.post('/api/events', json={'title': title, 'start': soon, 'position': {'lat': 51.04, 'lng': -114.07}}, headers=auth_a)
+            assert r.status_code == 201, r.text
+            return int(r.json()['id'])
+        e1, e2 = create('Buddy event one'), create('Buddy event two')
+        base = {'mode': 'any', 'audience': 'everyone', 'event_ids': [], 'people_ids': []}
+        def available(event, auth):
+            r = client.get(f'/api/buddies/events/{event}', headers=auth)
+            assert r.status_code == 200, r.text
+            return r.json()['people']
+        assert client.get('/api/buddies/me').status_code == 401
+        assert client.get(f'/api/buddies/events/{e1}').status_code == 401
+        assert client.put('/api/buddies/me', json={**base, 'mode': 'bad'}, headers=auth_a).status_code == 422
+        assert client.put('/api/buddies/me', json={**base, 'event_ids': [999999]}, headers=auth_a).status_code == 400
+        assert client.put('/api/buddies/me', json=base, headers=auth_a).status_code == 200
+        assert available(e1, auth_b) == [{'id': a, 'name': 'BuddyA'}]
+        assert available(e2, auth_c) == [{'id': a, 'name': 'BuddyA'}]
+        assert available(e1, auth_a) == []
+        # General availability must not auto-create RSVPs.
+        assert not client.get(f'/api/events/{e1}', headers=auth_a).json()['meGoing']
+        selected = {**base, 'mode': 'selected', 'event_ids': [e1]}
+        assert client.put('/api/buddies/me', json=selected, headers=auth_a).status_code == 200
+        assert available(e1, auth_b)
+        assert available(e2, auth_b) == []
+        assert client.put('/api/buddies/me', json={**selected, 'audience': 'mutual'}, headers=auth_a).status_code == 200
+        assert available(e1, auth_b) == []
+        client.put(f'/api/social/following/{b}', headers=auth_a)
+        assert available(e1, auth_b) == []
+        client.put(f'/api/social/following/{a}', headers=auth_b)
+        assert available(e1, auth_b)
+        assert available(e1, auth_c) == []
+        only_b = {**selected, 'audience': 'selected', 'people_ids': [b]}
+        assert client.put('/api/buddies/me', json={**only_b, 'people_ids': [c]}, headers=auth_a).status_code == 400
+        assert client.put('/api/buddies/me', json=only_b, headers=auth_a).status_code == 200
+        assert available(e1, auth_b) and not available(e1, auth_c)
+        client.delete(f'/api/social/following/{b}', headers=auth_a)
+        assert available(e1, auth_b) == []
+        # Turning Off hides availability and clears RSVP buddy flags.
+        client.put('/api/buddies/me', json=selected, headers=auth_a)
+        client.put(f'/api/events/{e1}/rsvp', json={'lookingForBuddy': True}, headers=auth_a)
+        assert client.put('/api/buddies/me', json={**base, 'mode': 'off'}, headers=auth_a).status_code == 200
+        assert available(e1, auth_b) == []
+        assert not client.get(f'/api/events/{e1}', headers=auth_a).json()['meLookingForBuddy']
+        # An explicit event request can re-enable selected-event availability.
+        client.put(f'/api/events/{e1}/rsvp', json={'lookingForBuddy': True}, headers=auth_a)
+        assert client.get('/api/buddies/me', headers=auth_a).json()['mode'] == 'selected'
+        assert available(e1, auth_b)
+        client.put(f'/api/events/{e1}/rsvp', json={'lookingForBuddy': False}, headers=auth_a)
+        assert available(e1, auth_b) == []
+        assert client.get('/api/users/me/export', headers=auth_a).json()['buddy_preferences'] is not None
+        for auth in (auth_a, auth_b, auth_c):
+            assert client.delete('/api/users/me', headers=auth).status_code == 204

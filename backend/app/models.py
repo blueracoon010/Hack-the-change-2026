@@ -31,3 +31,11 @@ class SocialProfile(SQLModel, table=True):
     instagram: str = ''
     interests_json: str = '[]'
     discoverable: bool = False
+
+
+class BuddyPreference(SQLModel, table=True):
+    user_id: int = Field(foreign_key="user.id", primary_key=True)
+    mode: str = 'selected'
+    audience: str = 'mutual'
+    event_ids_json: str = '[]'
+    people_ids_json: str = '[]'

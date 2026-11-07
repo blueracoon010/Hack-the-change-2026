@@ -11,7 +11,7 @@ from sqlmodel import Session, delete, func, select, cast, Integer
 
 from ..config import settings
 from ..db import get_session
-from ..models import User
+from ..models import User, BuddyPreference
 from ..security import get_current_user
 from .geocode import geocode
 from .models import Event, EventRsvp, SyncRun, utcnow
@@ -256,6 +256,17 @@ def rsvp(event_id: int, body: RsvpIn, user: User = Depends(get_current_user), se
         raise HTTPException(404, "Event not found")
     r = session.get(EventRsvp, (event_id, user.id)) or EventRsvp(event_id=event_id, user_id=user.id)
     r.looking_for_buddy = body.looking_for_buddy
+    import json
+    pref = session.get(BuddyPreference, user.id)
+    if pref and pref.mode != 'any':
+        ids = set(json.loads(pref.event_ids_json))
+        if body.looking_for_buddy:
+            pref.mode = 'selected'
+            ids.add(event_id)
+        else:
+            ids.discard(event_id)
+        pref.event_ids_json = json.dumps(sorted(ids))
+        session.add(pref)
     session.add(r)
     session.commit()
     return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy}, user.id, None)

@@ -1,16 +1,18 @@
 ﻿import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { MapPin, Users, Check, Pencil, Heart, Link2, ArrowUpRight, Coffee, BookOpen, Music, Palette, Footprints, Trophy } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { MapPin, Users, Check, Pencil, Heart, Link2, ArrowUpRight, Coffee, BookOpen, Music, Palette, Footprints, Trophy, HandHeart } from 'lucide-react'
 import { Button, Card, Field } from '../components/ui'
 import { groups, interests, useCommunityState } from '../lib/community'
 import { ConnectionsPanel } from '../components/ConnectionsPanel'
 import { SocialLinks } from '../components/SocialLinks'
+import { BuddyPreferences } from '../components/BuddyPreferences'
 
 const interestIcons = [Footprints, BookOpen, Palette, Music, Trophy, Coffee]
 const sections = [
   { id: 'about', label: 'About me', icon: Heart },
   { id: 'connections', label: 'Connections', icon: Users },
   { id: 'social', label: 'Social & invites', icon: Link2 },
+  { id: 'buddy', label: 'Go together', icon: HandHeart },
 ] as const
 
 export default function Profile() {
@@ -18,7 +20,9 @@ export default function Profile() {
   const [draft, setDraft] = useState(data.profile)
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [section, setSection] = useState<'about' | 'connections' | 'social'>('about')
+  const [params, setParams] = useSearchParams()
+  const section = sections.find(s => s.id === params.get('section'))?.id ?? 'about'
+  const setSection = (id: typeof sections[number]['id']) => setParams({ section: id })
   const joined = groups.filter(g => data.joined.includes(g.id))
   function edit() { setDraft(data.profile); setEditing(true); setSection('about'); setSaved(false) }
   function save(e: FormEvent) {
@@ -40,6 +44,7 @@ export default function Profile() {
     <div className="flex gap-1 overflow-x-auto border-b border-line" role="group" aria-label="Profile sections">{sections.map(({ id, label, icon: Icon }) => <button type="button" key={id} aria-pressed={section === id} onClick={() => setSection(id)} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-bold transition ${section === id ? 'border-brand text-brand-strong' : 'border-transparent text-muted hover:text-fg'}`}><Icon size={17} />{label}</button>)}</div>
     <div hidden={section !== 'connections'}><ConnectionsPanel /></div>
     <div hidden={section !== 'social'}><SocialLinks /></div>
+    <div hidden={section !== 'buddy'}><BuddyPreferences /></div>
     <div hidden={section !== 'about'}>
       <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
         {editing ? <Card><h2 className="mb-5 text-xl font-extrabold">Edit profile</h2><form onSubmit={save} className="space-y-5"><div className="grid gap-4 sm:grid-cols-2"><Field label="Display name" required maxLength={60} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /><Field label="Neighbourhood" placeholder="Bridgeland" maxLength={80} value={draft.neighbourhood} onChange={e => setDraft({ ...draft, neighbourhood: e.target.value })} /></div><label className="block text-sm font-bold">Bio <span className="font-normal text-muted">· optional</span><textarea className="mt-2 block min-h-24 w-full rounded-xl border border-line bg-surface p-3 font-normal" maxLength={400} value={draft.bio} onChange={e => setDraft({ ...draft, bio: e.target.value })} placeholder="A little about you…" /></label><fieldset><legend className="mb-3 text-sm font-bold">Social style</legend><div className="flex flex-wrap gap-2">{['Quiet & small groups', 'A little of both', 'Lively & social'].map(s => <Button key={s} type="button" variant={draft.social === s ? 'primary' : 'secondary'} aria-pressed={draft.social === s} onClick={() => setDraft({ ...draft, social: s })}>{s}</Button>)}</div></fieldset><fieldset><legend className="mb-3 text-sm font-bold">Interests</legend><div className="grid grid-cols-2 gap-2">{interests.map((i, index) => { const Icon = interestIcons[index]; const active = draft.interests.includes(i); return <button key={i} type="button" aria-pressed={active} onClick={() => setDraft({ ...draft, interests: active ? draft.interests.filter(v => v !== i) : [...draft.interests, i] })} className={`flex items-center gap-2 rounded-xl border p-3 text-left text-sm font-bold ${active ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line hover:bg-surface-2'}`}><Icon size={18} className="shrink-0" />{i}{active && <Check size={14} className="ml-auto shrink-0" />}</button> })}</div></fieldset><div className="flex gap-3 border-t border-line pt-4"><Button type="submit">Save changes</Button><Button type="button" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button></div></form></Card> : <Card><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-extrabold">My interests</h2><button type="button" onClick={edit} aria-label="Edit interests" className="rounded-lg p-2 text-muted hover:bg-surface-2"><Pencil size={16} /></button></div>{data.profile.interests.length ? <div className="grid grid-cols-2 gap-3">{data.profile.interests.map(i => { const Icon = interestIcons[interests.indexOf(i)] ?? Heart; return <div key={i} className="flex items-center gap-3 rounded-2xl bg-surface-2 p-4"><Icon className="size-5 shrink-0 text-brand-strong" /><span className="text-sm font-bold">{i}</span></div> })}</div> : <div className="rounded-2xl border border-dashed border-line px-4 py-8 text-center"><Heart className="mx-auto mb-3 size-8 text-brand-strong" aria-hidden /><p className="mb-4 text-sm text-muted">What do you love doing?</p><Button variant="secondary" onClick={edit}>Add interests</Button></div>}<p className="mt-5 flex items-center gap-1.5 text-xs text-muted"><Check size={13} />Profile details saved on this device · private</p></Card>}

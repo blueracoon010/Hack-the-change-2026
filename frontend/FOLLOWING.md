@@ -32,3 +32,13 @@ Suggestions come from overlapping opted-in interests or a two-hop follow path (y
 An opted-in signed-in user can copy an invitation URL from Profile. `GET /api/social/invite/{token}` exposes only account ID, account name, and the optional Instagram handle. Signed tokens expire after 30 days and have a distinct purpose that cannot authorize account API requests. Disabling discovery or deleting the account makes the invitation unavailable. Recipients can sign up/sign in, return to the invitation, and explicitly follow. No messages are sent automatically. Localhost URLs only work on the originating computer; deployment is needed for sharing across devices.
 
 Guest previews use clearly labeled sample people and locally selected shared interests. Real invitation links require an account and backend. The app does not automatically publish or sync guest data.
+
+## Go together
+
+Profile -> Go together stores server-side availability separately from social discovery. Choose Off, Any event, or selected event IDs, and Everyone (signed-in users), Mutual follows (both directions), or selected people from your following list. Availability never shares location and does not automatically RSVP, message, or match people.
+
+`BuddyPreference` is a new table, created on backend restart without changing existing tables. `GET/PUT /api/buddies/me` reads/writes the authenticated user's preferences. `GET /api/buddies/events/{id}` returns only IDs/display names of other people whose preferences allow that viewer to see their availability. Mutual/selected audiences are checked against live follow edges; unfollowing revokes that audience access. Off overrides all availability and clears existing RSVP buddy flags. Invalid/non-followed selected people are rejected. Account exports include preferences and deletion removes the user's settings and their ID from other selected lists.
+
+General availability is not attendance. Any event can show you as available without creating RSVPs for unselected events. Saving preferences updates buddy flags only on existing RSVPs. Selected-event preferences and explicit event-level Find a buddy requests both contribute to availability. An explicit Find a buddy request can re-enable Selected mode after Off. An active Any event preference continues to apply until changed in Profile; turning off an event RSVP buddy flag alone does not turn off that general availability.
+
+The opened event details show a separate audience-filtered people list and a link back to preferences. The aggregate attendee buddy count continues to count RSVP flags, not every person generally open to going. People-map pins remain labeled demo data. No invitations/acceptance or direct messaging is implemented.

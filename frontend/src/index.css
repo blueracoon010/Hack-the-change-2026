@@ -158,6 +158,12 @@ body {
   background: linear-gradient(90deg, #7cc4ba, #7fbfcc, #0f766e);
 }
 
+/* Opened event/person details must scroll instead of inheriting card clipping. */
+.nexus-card.nexus-detail {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 /* Leaflet pins are plain HTML; drop Leaflet's default white box */
 .nexus-pin { background: none; border: 0; }
 .leaflet-container { font-family: var(--font-sans); background: var(--surface-2); }

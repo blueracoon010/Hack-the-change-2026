@@ -6,6 +6,7 @@ import {
   MapPin, Search, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
+import { EventBuddies } from '../components/BuddyPreferences'
 import { Button, cx, Segmented } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
@@ -53,6 +54,7 @@ export default function Explore() {
 
   // Per-user actions. RSVP and "find a buddy" are saved to the backend; saved/reminders are local for now.
   const [rsvps, setRsvps] = useState<Set<string>>(new Set())
+  const [rsvpError, setRsvpError] = useState('')
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [buddyAsks, setBuddyAsks] = useState<Set<string>>(new Set())
   const [reminders, setReminders] = useState<Set<string>>(new Set())
@@ -70,8 +72,12 @@ export default function Explore() {
   }, [apiEvents])
 
   async function saveRsvp(id: string, going: boolean, buddy: boolean) {
+    setRsvpError('')
     try {
       await api(`/api/events/${id}/rsvp`, going ? { method: 'PUT', body: { lookingForBuddy: buddy } } : { method: 'DELETE' })
+      window.dispatchEvent(new Event('corkboard-buddy-updated'))
+    } catch (e) {
+      setRsvpError((e as Error).message)
     } finally {
       reloadEvents() // real going / buddy counts
     }
@@ -254,11 +260,12 @@ export default function Explore() {
                   buddyOnly ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:text-fg')}>
                 <HandHeart className="size-4" aria-hidden /> Open to go together
               </button>
-              <p className="ml-2 shrink-0 text-xs text-muted">Locations are shown at neighbourhood level only.</p>
+              <p className="ml-2 shrink-0 text-xs text-muted">Demo people · sample neighbourhood locations.</p>
             </>
           )}
         </div>
 
+        {rsvpError && <p role="alert" className="text-sm text-danger">{rsvpError}</p>}
         {/* Map card | cards */}
         <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <section aria-labelledby="map-title" className="flex h-[60vh] min-h-80 flex-col rounded-3xl border border-line bg-surface/85 p-4 shadow-sm backdrop-blur md:p-5 lg:h-auto lg:min-h-0">
@@ -268,7 +275,7 @@ export default function Explore() {
                 <h2 id="map-title" className="text-2xl font-extrabold tracking-tight">Map view</h2>
               </div>
               <p className="text-sm font-semibold text-muted">
-                {mode === 'events' ? 'Numbers show neighbours looking for a buddy' : 'Green dot: open to go together'}
+                {mode === 'events' ? 'Numbers show attendees looking for a buddy' : 'Green dot: demo buddy availability'}
               </p>
             </div>
             <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-line">
@@ -286,7 +293,7 @@ export default function Explore() {
             </div>
           </section>
 
-          <div ref={sideRef} className="flex scroll-mt-4 flex-col lg:min-h-0">
+          <div ref={sideRef} className="flex min-w-0 scroll-mt-4 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden">
             {selectedEvent ? (
               <EventDetail event={selectedEvent} km={distanceKm(origin, selectedEvent.position)} onClose={() => setSelected(null)}
                 going={rsvps.has(selectedEvent.id)} onRsvp={() => rsvpEvent(selectedEvent.id)}
@@ -467,7 +474,7 @@ function DetailCard({ label, backLabel, onClose, children }: { label: string; ba
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
   return (
-    <section aria-label={label} className="nexus-card animate-in rounded-3xl border border-line p-6 shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+    <section aria-label={label} tabIndex={0} className="nexus-card nexus-detail animate-in max-h-[70dvh] overscroll-contain rounded-3xl border border-line p-6 shadow-sm [overflow-wrap:anywhere] [scrollbar-gutter:stable] lg:min-h-0 lg:max-h-full lg:flex-1">
       <button type="button" onClick={onClose} className="-ml-2 mb-3 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-bold text-muted hover:bg-surface-2 hover:text-fg">
         <ArrowLeft className="size-4" aria-hidden /> {backLabel}
       </button>
@@ -522,10 +529,11 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
       )}
 
       {e.description && <p className="mt-5 leading-relaxed">{e.description}</p>}
+      <EventBuddies eventId={e.id} />
 
       <div className="mt-5 rounded-2xl border border-line bg-surface p-4">
         <p className="flex items-center gap-2 font-bold"><Footprints className="size-4.5 text-brand-strong" aria-hidden />
-          {e.lookingForBuddy} {e.lookingForBuddy === 1 ? 'neighbour is' : 'neighbours are'} looking for someone to go with</p>
+          {e.lookingForBuddy} {e.lookingForBuddy === 1 ? 'attendee is' : 'attendees are'} looking for someone to go with</p>
         {friends.length > 0 && (
           <div className="mt-3 flex items-center gap-2">
             <div className="flex -space-x-2">
