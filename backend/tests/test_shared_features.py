@@ -51,8 +51,11 @@ def test_saved_events_and_my_people():
         # Saved + reminder survive a reload (they're in the database)
         assert client.put(f"/api/events/{ev['id']}/save", headers=me, json={"saved": True, "reminder": True}).status_code == 200
         assert client.get("/api/events/saved", headers=me).json() == {"saved": [ev["id"]], "reminders": [ev["id"]]}
+        listed = client.get("/api/events/saved/events", headers=me).json()
+        assert [e["title"] for e in listed] == ["Book swap"] and listed[0]["id"] == ev["id"]
         client.put(f"/api/events/{ev['id']}/save", headers=me, json={"saved": False, "reminder": False})
         assert client.get("/api/events/saved", headers=me).json() == {"saved": [], "reminders": []}
+        assert client.get("/api/events/saved/events", headers=me).json() == []
 
         assert client.get("/api/social/map-people", headers=me).json() == {"people": [], "hidden": 0}
         # Fran shares a neighbourhood (we pre-seed the geocode cache so the test needs no network); Sam doesn't share.

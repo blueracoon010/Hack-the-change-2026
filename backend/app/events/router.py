@@ -250,6 +250,18 @@ def saved_events(user: User = Depends(get_current_user), session: Session = Depe
     return {"saved": [str(r.event_id) for r in rows if r.saved], "reminders": [str(r.event_id) for r in rows if r.reminder]}
 
 
+@router.get("/saved/events", response_model=list[EventOut], response_model_by_alias=True)
+def saved_event_list(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> list[EventOut]:
+    """Profile > Saved: the events you bookmarked, soonest first, with full details (only ones you can still see)."""
+    ids = session.exec(select(EventSave.event_id).where(EventSave.user_id == user.id, EventSave.saved == True)).all()  # noqa: E712
+    if not ids:
+        return []
+    rows = session.exec(select(Event).where(Event.id.in_(ids), visible_to(user.id, session)).order_by(Event.start, Event.id)).all()
+    mine = dict(session.exec(select(EventRsvp.event_id, EventRsvp.looking_for_buddy).where(EventRsvp.user_id == user.id)).all())
+    counts = rsvp_counts(session, [r.id for r in rows])
+    return [to_out(r, counts, mine, user.id, None) for r in rows]
+
+
 @router.put("/{event_id}/save")
 def save_event(event_id: int, body: SaveIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
     """Set both flags for one event. Both false removes the row."""
