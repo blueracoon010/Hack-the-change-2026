@@ -30,7 +30,8 @@ class SocialProfile(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     instagram: str = ''
     interests_json: str = '[]'
-    discoverable: bool = False
+    discoverable: bool = False  # "Public profile": others see bio, neighbourhood, interests, events, map pin
+    show_instagram: bool = True  # separate choice: Instagram shown only if this is on AND the profile is public
     # "About me" (shown to other members only when discoverable is on)
     bio: str = ''
     neighbourhood: str = ''
@@ -60,3 +61,12 @@ class GroupMessage(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     text: str
     created_at: datetime = Field(default_factory=_now, index=True)
+
+
+class InviteCode(SQLModel, table=True):
+    """Invite-a-friend: a short code (and link) that lets someone become your friend (mutual follow) in one step."""
+    code: str = Field(primary_key=True)  # e.g. "K7M2QX9P"
+    user_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=_now)
+    expires_at: datetime
+    revoked: bool = False

@@ -50,3 +50,35 @@ def test_full_profile_and_viewing_others():
         assert client.get("/api/social/people/999999", headers=ben).status_code == 404
         assert client.get(f"/api/social/people/{ana_id}").status_code == 401  # members only
         assert client.get("/api/users/me/export", headers=ana).json()["social_profile"]["bio"] == "Love long walks."
+
+
+def test_visibility_and_instagram_are_separate_and_invites_make_friends():
+    with TestClient(app) as client:
+        cam, cam_id = _signup(client, "Cam Invite", "cam-invite@example.com")
+        dee, dee_id = _signup(client, "Dee Invite", "dee-invite@example.com")
+
+        # Each form saves only its own setting: Instagram doesn't change visibility, and vice versa.
+        client.put("/api/social/profile", headers=cam, json={"instagram": "cam_ig"})
+        assert client.get("/api/social/profile", headers=cam).json()["discoverable"] is False
+        client.put("/api/social/profile", headers=cam, json={"discoverable": True})
+        p = client.get("/api/social/profile", headers=cam).json()
+        assert p["instagram"] == "cam_ig" and p["show_instagram"] is True
+
+        assert client.get(f"/api/social/people/{cam_id}", headers=dee).json()["instagram"] == "cam_ig"
+        client.put("/api/social/profile", headers=cam, json={"show_instagram": False})  # public profile, Instagram hidden
+        view = client.get(f"/api/social/people/{cam_id}", headers=dee).json()
+        assert view["private"] is False and view["instagram"] == ""
+        assert client.get(f"/api/social/people/{cam_id}", headers=cam).json()["instagram"] == "cam_ig"  # you see your own
+
+        # Invite a friend: one tap makes you friends (both follow each other)
+        code = client.get("/api/social/invites/mine", headers=cam).json()["code"]
+        assert client.post(f"/api/social/invite/{code}/accept", headers=cam).status_code == 400  # own invite
+        assert client.post(f"/api/social/invite/{code}/accept", headers=dee).json() == {"id": cam_id, "name": "Cam Invite", "friends": True}
+        assert client.post(f"/api/social/invite/{code}/accept", headers=dee).status_code == 200  # twice is fine
+        view = client.get(f"/api/social/people/{cam_id}", headers=dee).json()
+        assert view["is_following"] and view["follows_you"]
+        assert client.post(f"/api/social/invite/{code}/accept").status_code == 401  # must be signed in
+
+        new_code = client.post("/api/social/invites/new", headers=cam).json()["code"]
+        assert new_code != code and client.get(f"/api/social/invite/{code}").status_code == 404  # old one switched off
+        assert client.get(f"/api/social/invite/{new_code}").status_code == 200

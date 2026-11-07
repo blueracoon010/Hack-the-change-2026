@@ -1,5 +1,5 @@
 // Another member's profile, from the shared database (GET /api/social/people/:id).
-// Only the name and follow counts are shown unless that person turned on "Let people discover me".
+// Only the name and follow counts are shown unless that person made their profile Public (Profile → About me).
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarDays, Coffee, Lock, MapPin, Sparkles, UserCheck, UserPlus } from 'lucide-react'

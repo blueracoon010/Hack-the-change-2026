@@ -5,7 +5,7 @@ from sqlmodel import Session, select, delete, or_
 
 from ..db import get_session
 from ..events.models import Event, EventRsvp, EventSave
-from ..models import User, Follow, SocialProfile, BuddyPreference, GroupMembership, GroupMessage
+from ..models import User, Follow, SocialProfile, BuddyPreference, GroupMembership, GroupMessage, InviteCode
 from .community import delete_user_community_data
 from ..schemas import UserOut, UserUpdate
 from ..security import get_current_user
@@ -53,6 +53,7 @@ def delete_me(user: User = Depends(get_current_user), session: Session = Depends
     session.exec(delete(EventRsvp).where((EventRsvp.user_id == user.id) | EventRsvp.event_id.in_(mine)))
     session.exec(delete(EventSave).where((EventSave.user_id == user.id) | EventSave.event_id.in_(mine)))
     delete_user_community_data(session, user.id)
+    session.exec(delete(InviteCode).where(InviteCode.user_id == user.id))
     session.exec(delete(Event).where(Event.created_by == user.id))
     session.delete(user)
     session.commit()

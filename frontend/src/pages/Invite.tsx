@@ -1,38 +1,91 @@
-﻿import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+// Opened from an invite link or code (#/invite/CODE). Works signed out: shows who invited you, then sign up or
+// sign in and come straight back here to become friends (you follow each other) in one tap.
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Check, UserPlus } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { APP } from '../config/app'
 import { Button, Card } from '../components/ui'
+import { Logo } from '../components/Logo'
 
 type Inviter = { id: number; name: string; instagram: string }
+type PersonState = { is_following: boolean; follows_you: boolean }
+
 export default function Invite() {
-  const { token } = useParams()
+  const { token: code = '' } = useParams()
   const { user, ready } = useAuth()
+  const navigate = useNavigate()
   const [person, setPerson] = useState<Inviter | null>(null)
+  const [friends, setFriends] = useState(false)
   const [error, setError] = useState('')
-  const [following, setFollowing] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState('')
   const [retry, setRetry] = useState(0)
-  const from = `/invite/${encodeURIComponent(token ?? '')}`
+  const from = `/invite/${encodeURIComponent(code)}`
+
   useEffect(() => {
     let active = true
-    setPerson(null); setError(''); setFollowing(false); setNotice('')
+    setPerson(null); setError(''); setFriends(false)
     if (!ready) return
-    async function load() {
+    ;(async () => {
       try {
-        const invited = await api<Inviter>(`/api/social/invite/${encodeURIComponent(token ?? '')}`)
-        const state = user ? await api<{ following: number[] }>('/api/social/me') : null
-        if (active) { setPerson(invited); setFollowing(state?.following.includes(invited.id) ?? false) }
+        const inviter = await api<Inviter>(`/api/social/invite/${encodeURIComponent(code)}`)
+        const state = user && user.id !== inviter.id ? await api<PersonState>(`/api/social/people/${inviter.id}`) : null
+        if (active) { setPerson(inviter); setFriends(!!state?.is_following && !!state?.follows_you) }
       } catch (e) { if (active) setError((e as Error).message) }
-    }
-    load()
+    })()
     return () => { active = false }
-  }, [token, user?.id, ready, retry])
-  async function follow() {
-    if (!person || !user) return
+  }, [code, user?.id, ready, retry])
+
+  async function accept() {
     setBusy(true); setError('')
-    try { await api(`/api/social/following/${person.id}`, { method: following ? 'DELETE' : 'PUT' }); setFollowing(!following); setNotice(following ? 'Unfollowed.' : `You’re now following ${person.name}.`) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+    try {
+      await api(`/api/social/invite/${encodeURIComponent(code)}/accept`, { method: 'POST' })
+      setFriends(true)
+      window.dispatchEvent(new Event('corkboard-social-updated'))
+    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
-  return <main className="mx-auto max-w-xl px-5 py-16"><Card><p className="text-sm font-bold uppercase tracking-widest text-brand-strong">Corkboard YYC · You’re invited</p>{person ? <><h1 className="mt-5 text-3xl font-extrabold">Connect with {person.name}</h1><p className="my-5 text-muted">Find familiar faces and new experiences in Calgary. Following is always your choice.</p>{person.instagram && <a className="mb-5 block font-bold text-brand-strong" href={`https://www.instagram.com/${encodeURIComponent(person.instagram)}/`} target="_blank" rel="noreferrer">@{person.instagram} on Instagram ↗ (self-reported)</a>}{user ? user.id === person.id ? <p>This is your invitation link.</p> : <Button onClick={follow} loading={busy}>{following ? 'Unfollow' : `Follow ${person.name}`}</Button> : <div className="flex gap-4"><Link to="/signup" state={{ from }} className="rounded-xl bg-brand px-4 py-3 font-bold text-white">Create account</Link><Link to="/login" state={{ from }} className="rounded-xl border border-line px-4 py-3 font-bold">Sign in</Link></div>}</> : !error && <p className="mt-5" role="status">Loading invitation…</p>}{error && <div role="alert" className="my-4"><p className="text-danger">{error}</p><Button variant="secondary" className="mt-3" onClick={() => setRetry(v => v + 1)}>Retry</Button></div>}<p className="mt-4 text-success" role="status">{notice}</p><Link to="/profile" className="mt-6 inline-block font-bold text-brand-strong">Go to your profile</Link></Card></main>
+
+  return (
+    <main className="mx-auto grid min-h-screen max-w-xl content-center px-5 py-16">
+      <div className="mb-6"><Logo /></div>
+      <Card>
+        <p className="text-sm font-bold uppercase tracking-widest text-brand-strong">You’re invited</p>
+        {person ? <>
+          <div className="mt-5 flex items-center gap-4">
+            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-brand text-2xl font-extrabold text-white" aria-hidden>{person.name[0]?.toUpperCase()}</span>
+            <h1 className="text-3xl font-extrabold leading-tight">{user?.id === person.id ? 'This is your invite' : `${person.name} invited you`}</h1>
+          </div>
+          <p className="my-5 text-muted">{APP.name} shows what’s on around you in Calgary, and who you know is going. Friends see each other’s plans and can go together.</p>
+          {person.instagram && <a className="mb-5 block font-bold text-brand-strong" href={`https://www.instagram.com/${encodeURIComponent(person.instagram)}/`} target="_blank" rel="noreferrer">@{person.instagram} on Instagram ↗ <span className="font-normal text-muted">(self-reported)</span></a>}
+
+          {!user ? (
+            <div className="space-y-3">
+              <p className="font-bold">Create an account (or sign in) to become friends with {person.name.split(' ')[0]}.</p>
+              <div className="flex flex-wrap gap-3">
+                <Link to="/signup" state={{ from }} className="btn-primary rounded-full px-5 py-2.5 font-bold">Create account</Link>
+                <Link to="/login" state={{ from }} className="rounded-full border border-line px-5 py-2.5 font-bold hover:bg-surface-2">Sign in</Link>
+              </div>
+            </div>
+          ) : user.id === person.id ? (
+            <p className="text-muted">Share it with a friend from <Link to="/profile?section=social" className="font-bold text-brand-strong">Profile → Social & invites</Link>.</p>
+          ) : friends ? (
+            <div className="space-y-4" role="status">
+              <p className="flex items-center gap-2 rounded-2xl bg-brand-tint p-4 font-bold text-brand-strong"><Check size={18} aria-hidden /> You and {person.name.split(' ')[0]} are friends.</p>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => navigate(`/people/${person.id}`)}>See their profile</Button>
+                <Button variant="secondary" onClick={() => navigate('/')}>Explore events</Button>
+              </div>
+            </div>
+          ) : (
+            <Button onClick={accept} loading={busy}><UserPlus size={16} aria-hidden /> Add {person.name.split(' ')[0]} as a friend</Button>
+          )}
+          {user && user.id !== person.id && !friends && <p className="mt-3 text-xs text-muted">You’ll follow each other. You can unfollow any time from their profile.</p>}
+        </> : !error && <p className="mt-5" role="status">Loading invite…</p>}
+        {error && <div role="alert" className="mt-4"><p className="text-danger">{error}</p>
+          <div className="mt-3 flex gap-3"><Button variant="secondary" onClick={() => setRetry(v => v + 1)}>Try again</Button>
+            <Link to={user ? '/profile?section=social' : '/login'} className="self-center font-bold text-brand-strong">{user ? 'Enter a different code' : 'Sign in'}</Link></div></div>}
+      </Card>
+    </main>
+  )
 }

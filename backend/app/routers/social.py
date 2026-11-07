@@ -26,7 +26,7 @@ def my_connections(user: User = Depends(get_current_user), session: Session = De
         if mutual and own and own.discoverable and profile and profile.discoverable:
             reasons.append(f'{mutual} people you follow also follow this person')
         previews.append({'id': person.id, 'name': person.name,
-                         'instagram': profile.instagram if profile and profile.discoverable else '',
+                         'instagram': public_instagram(profile),
                          'reasons': reasons,
                          'suggested': bool(reasons) and person.id not in outgoing})
     return {
@@ -73,11 +73,17 @@ from ..models import SocialProfile
 INTERESTS = {'Walking & outdoors', 'Books', 'Art & culture', 'Music', 'Sports', 'Coffee & conversation'}
 SOCIAL_STYLES = ('Quiet & small groups', 'A little of both', 'Lively & social')
 
+def public_instagram(profile) -> str:
+    """Instagram is its own choice: shown to others only if the profile is public AND "show Instagram" is on."""
+    return profile.instagram if profile and profile.discoverable and profile.show_instagram else ''
+
+
 class SocialDetails(BaseModel):
-    instagram: str = Field(default='', max_length=30)
-    interests: list[str] = Field(default_factory=list, max_length=6)
-    discoverable: bool = False
-    # "About me". None on a PUT = keep what's stored (the Social links form doesn't send these).
+    # On a PUT, any field left out (None) keeps what's stored, so each form saves only its own settings.
+    instagram: str | None = Field(default=None, max_length=31)
+    show_instagram: bool | None = None
+    interests: list[str] | None = Field(default=None, max_length=6)
+    discoverable: bool | None = None  # public profile
     bio: str | None = Field(default=None, max_length=400)
     neighbourhood: str | None = Field(default=None, max_length=80)
     social_style: Literal['Quiet & small groups', 'A little of both', 'Lively & social'] | None = None
@@ -90,6 +96,8 @@ class SocialDetails(BaseModel):
     @field_validator('instagram')
     @classmethod
     def instagram_handle(cls, value):
+        if value is None:
+            return value
         value = value.strip().lstrip('@').lower()
         if value and not re.fullmatch(r'[a-z0-9_](?:[a-z0-9._]{0,28}[a-z0-9_])?', value):
             raise ValueError('Enter an Instagram username, without a URL')
@@ -100,6 +108,8 @@ class SocialDetails(BaseModel):
     @field_validator('interests')
     @classmethod
     def known_interests(cls, value):
+        if value is None:
+            return value
         if not set(value) <= INTERESTS:
             raise ValueError('Unknown interest')
         return sorted(set(value))
@@ -107,18 +117,23 @@ class SocialDetails(BaseModel):
 @router.get('/profile')
 def get_social_profile(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     profile = session.get(SocialProfile, user.id)
-    details = SocialDetails(instagram=profile.instagram, interests=json.loads(profile.interests_json), discoverable=profile.discoverable,
-                            bio=profile.bio, neighbourhood=profile.neighbourhood, social_style=profile.social_style) if profile \
-        else SocialDetails(bio='', neighbourhood='', social_style='A little of both')
-    token = jwt.encode({'sub': str(user.id), 'purpose': 'corkboard-invite', 'exp': datetime.now(timezone.utc) + timedelta(days=30)}, settings.jwt_secret, algorithm='HS256') if details.discoverable else None
-    return {**details.model_dump(), 'invite_token': token}
+    details = SocialDetails(instagram=profile.instagram, show_instagram=profile.show_instagram, interests=json.loads(profile.interests_json),
+                            discoverable=profile.discoverable, bio=profile.bio, neighbourhood=profile.neighbourhood,
+                            social_style=profile.social_style) if profile \
+        else SocialDetails(instagram='', show_instagram=True, interests=[], discoverable=False, bio='', neighbourhood='', social_style='A little of both')
+    return details.model_dump()
 
 @router.put('/profile')
 def save_social_profile(body: SocialDetails, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     profile = session.get(SocialProfile, user.id) or SocialProfile(user_id=user.id)
-    profile.instagram = body.instagram
-    profile.interests_json = json.dumps(body.interests)
-    profile.discoverable = body.discoverable
+    if body.instagram is not None:
+        profile.instagram = body.instagram
+    if body.show_instagram is not None:
+        profile.show_instagram = body.show_instagram
+    if body.interests is not None:
+        profile.interests_json = json.dumps(body.interests)
+    if body.discoverable is not None:
+        profile.discoverable = body.discoverable
     if body.bio is not None:
         profile.bio = body.bio
     if body.neighbourhood is not None:
@@ -129,20 +144,96 @@ def save_social_profile(body: SocialDetails, user: User = Depends(get_current_us
     session.commit()
     return get_social_profile(user, session)
 
-@router.get('/invite/{token}')
-def preview_invite(token: str, session: Session = Depends(get_session)):
+# ---------- Invite a friend ----------
+# A short code (also usable as a link: APP_URL/#/invite/CODE). Anyone with it can see your name and become your
+# friend (you follow each other) in one tap. Works whether your profile is public or private; you can make a new
+# code any time, which switches the old one off.
+INVITE_DAYS = 30
+_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # no 0/O or 1/I, easy to read out loud
+
+
+def _new_code() -> str:
+    import secrets
+    return ''.join(secrets.choice(_CODE_ALPHABET) for _ in range(8))
+
+
+def _active_invite(session: Session, user_id: int):
+    from ..models import InviteCode
+    now = datetime.now(timezone.utc)
+    for inv in session.exec(select(InviteCode).where(InviteCode.user_id == user_id, InviteCode.revoked == False)  # noqa: E712
+                            .order_by(InviteCode.created_at.desc())).all():
+        exp = inv.expires_at if inv.expires_at.tzinfo else inv.expires_at.replace(tzinfo=timezone.utc)
+        if exp > now:
+            return inv
+    return None
+
+
+def _invite_out(inv) -> dict:
+    exp = inv.expires_at if inv.expires_at.tzinfo else inv.expires_at.replace(tzinfo=timezone.utc)
+    return {'code': inv.code, 'expires_at': exp.isoformat()}
+
+
+@router.get('/invites/mine')
+def my_invite(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
+    """Your current invite code, created on first use."""
+    from ..models import InviteCode
+    inv = _active_invite(session, user.id)
+    if inv is None:
+        inv = InviteCode(code=_new_code(), user_id=user.id, expires_at=datetime.now(timezone.utc) + timedelta(days=INVITE_DAYS))
+        session.add(inv)
+        session.commit()
+        session.refresh(inv)
+    return _invite_out(inv)
+
+
+@router.post('/invites/new')
+def new_invite(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
+    """Switch off your old code (e.g. you shared it too widely) and get a fresh one."""
+    from ..models import InviteCode
+    for inv in session.exec(select(InviteCode).where(InviteCode.user_id == user.id, InviteCode.revoked == False)).all():  # noqa: E712
+        inv.revoked = True
+        session.add(inv)
+    session.commit()
+    return my_invite(user, session)
+
+
+def _inviter(code: str, session: Session) -> User:
+    from ..models import InviteCode
+    gone = HTTPException(404, 'This invite is invalid or has expired. Ask your friend for a new one.')
+    code = code.strip().upper().replace('-', '').replace(' ', '')
+    inv = session.get(InviteCode, code)
+    if inv is None or inv.revoked:
+        raise gone
+    exp = inv.expires_at if inv.expires_at.tzinfo else inv.expires_at.replace(tzinfo=timezone.utc)
+    if exp <= datetime.now(timezone.utc):
+        raise gone
+    person = session.get(User, inv.user_id)
+    if person is None:
+        raise gone
+    return person
+
+
+@router.get('/invite/{code}')
+def preview_invite(code: str, session: Session = Depends(get_session)) -> dict:
+    """Public (works before signing up): who invited you. Instagram only if they chose to show it publicly."""
+    person = _inviter(code, session)
+    return {'id': person.id, 'name': person.name, 'instagram': public_instagram(session.get(SocialProfile, person.id))}
+
+
+@router.post('/invite/{code}/accept')
+def accept_invite(code: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
+    """Become friends: you follow them and they follow you (they agreed by sharing the invite)."""
+    person = _inviter(code, session)
+    if person.id == user.id:
+        raise HTTPException(400, "That's your own invite. Share it with a friend!")
+    for follower, following in ((user.id, person.id), (person.id, user.id)):
+        if session.get(Follow, (follower, following)) is None:
+            session.add(Follow(follower_id=follower, following_id=following))
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=['HS256'])
-        if payload.get('purpose') != 'corkboard-invite':
-            raise ValueError()
-        user_id = int(payload['sub'])
-    except (jwt.PyJWTError, KeyError, ValueError):
-        raise HTTPException(404, 'This invitation is invalid or has expired')
-    person = session.get(User, user_id)
-    profile = session.get(SocialProfile, user_id)
-    if person is None or profile is None or not profile.discoverable:
-        raise HTTPException(404, 'This invitation is no longer available')
-    return {'id': person.id, 'name': person.name, 'instagram': profile.instagram}
+        session.commit()
+    except IntegrityError:  # accepted twice at once
+        session.rollback()
+    return {'id': person.id, 'name': person.name, 'friends': True}
 
 
 @router.get('/people/{person_id}')
@@ -179,7 +270,7 @@ def view_person(person_id: int, user: User = Depends(get_current_user), session:
             'bio': profile.bio if profile else '', 'neighbourhood': profile.neighbourhood if profile else '',
             'social_style': profile.social_style if profile else 'A little of both',
             'interests': their_interests, 'shared_interests': sorted(my_interests & set(their_interests)),
-            'instagram': profile.instagram if profile else '',
+            'instagram': (profile.instagram if profile else '') if is_me else public_instagram(profile),
             'events': [{'id': str(e.id), 'title': e.title, 'start': e.start.isoformat(), 'venue': e.venue_name or ''} for e in events]}
 
 

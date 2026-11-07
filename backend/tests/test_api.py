@@ -82,16 +82,18 @@ def test_social_discovery_and_invitations():
         b, auth_b = signup('SocialB')
         c, auth_c = signup('SocialC')
         assert client.put('/api/social/profile', json={}).status_code == 401
-        assert client.get('/api/social/profile', headers=auth_a).json()['invite_token'] is None
+        assert client.get('/api/social/profile', headers=auth_a).json()['discoverable'] is False
         assert client.put('/api/social/profile', json={'instagram': 'https://evil.example'}, headers=auth_a).status_code == 422
         assert client.put('/api/social/profile', json={'interests': ['Unknown']}, headers=auth_a).status_code == 422
         body = {'instagram': '@Social_A', 'interests': ['Books'], 'discoverable': True}
         result = client.put('/api/social/profile', json=body, headers=auth_a).json()
-        token = result['invite_token']
-        assert result['instagram'] == 'social_a'
+        token = client.get('/api/social/invites/mine', headers=auth_a).json()['code']
+        assert result['instagram'] == 'social_a' and len(token) == 8
+        assert client.get('/api/social/invites/mine', headers=auth_a).json()['code'] == token  # stable until renewed
         invite = client.get(f'/api/social/invite/{token}')
         assert invite.status_code == 200
         assert invite.json() == {'id': a, 'name': 'SocialA', 'instagram': 'social_a'}
+        assert client.get(f'/api/social/invite/{token.lower()[:4]}-{token.lower()[4:]}').status_code == 200  # typed by hand
         # Public invite tokens must NEVER authorize API actions as the inviter.
         assert client.get('/api/auth/me', headers={'Authorization': f'Bearer {token}'}).status_code == 401
         from fastapi.security import HTTPAuthorizationCredentials
@@ -114,7 +116,8 @@ def test_social_discovery_and_invitations():
         assert ana['suggested'] and '1 people you follow' in ana['reasons'][0]
         assert client.get('/api/users/me/export', headers=auth_a).json()['social_profile']['instagram'] == 'social_a'
         client.put('/api/social/profile', json={**body, 'discoverable': False}, headers=auth_a)
-        assert client.get(f'/api/social/invite/{token}').status_code == 404
+        # Invites work for private profiles too, but Instagram is no longer shown.
+        assert client.get(f'/api/social/invite/{token}').json() == {'id': a, 'name': 'SocialA', 'instagram': ''}
         ana = next(p for p in client.get('/api/social/me', headers=auth_c).json()['people'] if p['id'] == a)
         assert not ana['suggested'] and ana['instagram'] == '' and ana['reasons'] == []
         for auth in (auth_a, auth_b, auth_c):

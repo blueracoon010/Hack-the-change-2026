@@ -46,6 +46,7 @@ _NEW_COLUMNS = [
     ("socialprofile", "bio", "VARCHAR NOT NULL DEFAULT ''"),
     ("socialprofile", "neighbourhood", "VARCHAR NOT NULL DEFAULT ''"),
     ("socialprofile", "social_style", "VARCHAR NOT NULL DEFAULT 'A little of both'"),
+    ("socialprofile", "show_instagram", "BOOLEAN NOT NULL DEFAULT TRUE"),
 ]
 
 
