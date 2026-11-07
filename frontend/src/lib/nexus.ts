@@ -111,14 +111,21 @@ export function fmtDistance(km: number) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
 }
 
-const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+/** Every date in the app is shown in Calgary time, whatever time zone the laptop is set to, so all devices agree. */
+export const TIME_ZONE = 'America/Edmonton'
+
+/** Calendar day in Calgary, e.g. "2026-11-07". Use this instead of toDateString() for "today" checks. */
+export const calgaryDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: TIME_ZONE })
+
+export const fmtTime = (d: Date) => d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: TIME_ZONE })
+
+const sameDay = (a: Date, b: Date) => calgaryDay(a) === calgaryDay(b)
 
 export function fmtWhen(d: Date, now = new Date()) {
-  const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })
+  const time = fmtTime(d)
   if (sameDay(d, now)) return `Today · ${time}`
-  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
-  if (sameDay(d, tomorrow)) return `Tomorrow · ${time}`
-  return `${d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })} · ${time}`
+  if (sameDay(d, new Date(now.getTime() + 24 * 3600_000))) return `Tomorrow · ${time}`
+  return `${d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TIME_ZONE })} · ${time}`
 }
 
 export function initials(name: string) {

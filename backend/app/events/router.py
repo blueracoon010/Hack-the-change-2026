@@ -1,5 +1,6 @@
 """/api/events endpoints for the map. Interactive docs: http://localhost:8000/docs#/events"""
 
+import hashlib
 import math
 from datetime import datetime, timedelta
 
@@ -119,7 +120,7 @@ def list_events(
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(func.lower(Event.title).like(like) | func.lower(Event.host).like(like) | func.lower(Event.venue_name).like(like))
-    rows = session.exec(stmt.order_by(Event.start).limit(limit * 3 if (category or radius_km) else limit)).all()
+    rows = session.exec(stmt.order_by(Event.start, Event.id).limit(limit * 3 if (category or radius_km) else limit)).all()
     if category:
         rows = [r for r in rows if set(r.categories.split(",")) & set(category)]
 
@@ -166,7 +167,20 @@ def sources_status(session: Session = Depends(get_session)) -> dict:
         })
     community = session.exec(select(func.count()).select_from(Event).where(Event.source == "community")).one()
     out.append({"source": "community", "configured": True, "events": community})
-    return {"sources": out, "syncEveryMinutes": settings.events_sync_minutes}
+
+    # Compare two machines: same fingerprint = same upcoming events on the map (ignores RSVPs and sync time).
+    now = utcnow()
+    keys = sorted(f"{src}:{sid}" for src, sid in session.exec(
+        select(Event.source, Event.source_id).where(Event.start >= now - timedelta(hours=3), Event.is_online == False)  # noqa: E712
+    ).all())
+    last = session.exec(select(func.max(SyncRun.finished_at)).where(SyncRun.ok == True)).one()  # noqa: E712
+    return {
+        "sources": out,
+        "syncEveryMinutes": settings.events_sync_minutes,
+        "lastSync": iso_utc(last),
+        "upcomingEvents": len(keys),
+        "fingerprint": hashlib.sha1("\n".join(keys).encode()).hexdigest()[:10],
+    }
 
 
 @router.post("/sync")
