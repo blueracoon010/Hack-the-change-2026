@@ -12,6 +12,7 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
   const current = NAV.find((n) => n.path === location.pathname)
+  const fullBleed = !!current?.fullBleed
 
   return (
     <div className="flex min-h-screen">
@@ -41,7 +42,7 @@ export function AppLayout() {
         </button>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={cx('flex min-w-0 flex-1 flex-col', fullBleed && 'h-screen')}>
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-bg/85 px-6 py-3 backdrop-blur">
           <div className="md:hidden"><Logo compact /></div>
           <p className="hidden text-sm font-bold text-muted md:block">{current?.label}</p>
@@ -60,7 +61,9 @@ export function AppLayout() {
           </div>
         </header>
 
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 pb-28 outline-none md:pb-8">
+        <main id="main" tabIndex={-1} className={cx('flex-1 outline-none', fullBleed
+          ? 'min-h-0 overflow-hidden pb-16 md:pb-0'
+          : 'mx-auto w-full max-w-7xl px-6 py-8 pb-28 md:pb-8')}>
           <Outlet />
         </main>
       </div>

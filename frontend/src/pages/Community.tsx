@@ -47,7 +47,7 @@ export default function Community() {
             <ol className="space-y-3">
               {sites.data?.rows.map((s, i) => (
                 <li key={s.name} className="flex items-center gap-3">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-sm font-extrabold text-[#05634f]">{i + 1}</span>
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-sm font-extrabold text-accent-strong">{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold">{s.name}</p>
                     <p className="truncate text-sm text-muted">{s.address}</p>

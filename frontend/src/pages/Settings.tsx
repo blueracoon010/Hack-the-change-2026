@@ -40,7 +40,7 @@ export default function Settings() {
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader title="Settings" subtitle="Your profile, display and privacy controls." />
-      <div aria-live="polite">{message && <p className="rounded-xl bg-accent-soft px-4 py-3 font-bold text-[#05634f]">{message}</p>}</div>
+      <div aria-live="polite">{message && <p className="rounded-xl bg-accent-soft px-4 py-3 font-bold text-accent-strong">{message}</p>}</div>
       {error && <Alert>{error}</Alert>}
 
       <Card aria-labelledby="profile-h">
@@ -73,7 +73,7 @@ export default function Settings() {
 
       <Card aria-labelledby="privacy-h">
         <h2 id="privacy-h" className="mb-2 text-lg font-extrabold">Privacy & your data</h2>
-        <p className="text-muted">We store only your <strong className="text-fg">name</strong>, <strong className="text-fg">email</strong>, a <strong className="text-fg">bcrypt-hashed password</strong> and your sign-up date. Energy and community data come from public sources and are not linked to you. No tracking or analytics.</p>
+        <p className="text-muted">We store only your <strong className="text-fg">name</strong>, <strong className="text-fg">email</strong>, a <strong className="text-fg">bcrypt-hashed password</strong> and your sign-up date. Event listings come from public community flyers. Your RSVPs are only visible to people you connect with. No tracking or analytics.</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Button variant="secondary" onClick={exportData}><Download className="size-4" aria-hidden /> Export my data</Button>
           {!confirmDelete ? (

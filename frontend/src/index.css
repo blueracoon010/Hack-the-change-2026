@@ -1,56 +1,62 @@
 @import "tailwindcss";
-@import "@fontsource-variable/nunito";
+@import "@fontsource-variable/plus-jakarta-sans";
 
 /* =====================================================================
    BRAND TOKENS: change these to retheme the whole app.
    Current palette borrowed from codethechangeyyc.ca (purple + mint).
    ===================================================================== */
 :root {
-  --brand: #7055fd;        /* primary buttons, active nav (4.8:1 on white, passes WCAG AA) */
-  --brand-strong: #5a3ff0; /* brand-coloured TEXT and links */
-  --brand-soft: #a689ff;   /* gradients, decoration */
-  --brand-tint: #efeaff;   /* soft backgrounds, active nav pill */
-  --accent: #00d3a9;       /* mint: decoration and charts only (low contrast on white) */
-  --accent-soft: #bafbe4;
-  --pink: #ffd2dc;
+  --brand: #0f766e;        /* teal: primary buttons, active states (5.5:1 with white text, passes WCAG AA) */
+  --brand-strong: #0b5f59; /* teal TEXT and links */
+  --brand-soft: #5eead4;   /* decoration */
+  --brand-tint: #ccfbf1;   /* soft teal backgrounds, badges */
+  --accent: #2dd4bf;       /* turquoise: decoration only */
+  --accent-soft: #cffafe;  /* turquoise tag chips */
+  --accent-strong: #155e75;/* text on turquoise chips */
+  --pink: #ffd9e3;
+  --card-tint: #e3f8f5;    /* turquoise wash at the corner of cards */
 
-  --bg: #f7f6fd;
+  --bg: #eefaf8;
   --surface: #ffffff;
-  --surface-2: #f1effc;
-  --fg: #17132b;
-  --muted: #5c5874;
-  --line: #e4e1f2;
+  --surface-2: #f1faf9;
+  --fg: #0f2422;
+  --muted: #4c6563;
+  --line: #d3ebe7;
   --danger: #c8233f;
-  --success: #08795f;
+  --success: #0f7a55;
   color-scheme: light;
 }
 
 .dark {
-  --brand-strong: #b9a6ff;
-  --brand-tint: #2a2250;
-  --bg: #0f0d1a;
-  --surface: #181528;
-  --surface-2: #221e36;
-  --fg: #f4f2ff;
-  --muted: #aaa5c6;
-  --line: #2f2a48;
+  --brand-strong: #5eead4;
+  --brand-tint: #0f3330;
+  --accent-soft: #0e2f36;
+  --accent-strong: #a5f3fc;
+  --card-tint: #0e2b2a;
+  --bg: #061211;
+  --surface: #0c1c1b;
+  --surface-2: #122826;
+  --fg: #e8f7f5;
+  --muted: #9fbcb8;
+  --line: #1e3a37;
   --danger: #ff6b85;
-  --success: #3ee0b9;
+  --success: #4ade80;
   color-scheme: dark;
 }
 
 /* High contrast mode (Settings > Accessibility) */
-.hc { --fg: #000; --muted: #1d1d1d; --line: #000; --brand-strong: #3a1ed6; --brand: #4a2ff0; }
-.dark.hc { --fg: #fff; --muted: #f0f0f0; --line: #fff; --brand-strong: #d6ccff; }
+.hc { --fg: #000; --muted: #1d1d1d; --line: #000; --brand-strong: #064e47; --brand: #0b5f59; --accent-strong: #0b3d4b; }
+.dark.hc { --fg: #fff; --muted: #f0f0f0; --line: #fff; --brand-strong: #99f6e4; --accent-strong: #cffafe; }
 
 @theme inline {
-  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
   --color-brand-soft: var(--brand-soft);
   --color-brand-tint: var(--brand-tint);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
   --color-pink: var(--pink);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -67,7 +73,11 @@ html[data-text="lg"] { font-size: 112.5%; }
 html[data-text="xl"] { font-size: 125%; }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(60rem 40rem at 100% 0%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 70%),
+    radial-gradient(50rem 40rem at 0% 100%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -95,7 +105,35 @@ body {
 }
 .skip-link:focus { top: 1rem; }
 
-.brand-gradient { background: linear-gradient(135deg, #7055fd 0%, #8b6cff 45%, #a689ff 100%); }
+.brand-gradient { background: linear-gradient(135deg, #0b5f59 0%, #0f766e 50%, #0e7490 100%); }
+
+/* Teal-to-turquoise pill button (all stops keep 4.5:1 with white text) */
+.btn-primary {
+  background: linear-gradient(90deg, #0f766e, #0e7490);
+  color: #fff;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--brand) 60%, transparent);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+
+/* Cards: white fading to a turquoise wash, with a turquoise-to-teal line across the top */
+.nexus-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(120deg, var(--surface) 55%, var(--card-tint));
+}
+.nexus-card::before {
+  content: "";
+  position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, #2dd4bf, #22d3ee, #0f766e);
+}
+
+/* Leaflet pins are plain HTML; drop Leaflet's default white box */
+.nexus-pin { background: none; border: 0; }
+.leaflet-container { font-family: var(--font-sans); background: var(--surface-2); }
+.leaflet-control-zoom a { color: var(--fg) !important; background: var(--surface) !important; border-color: var(--line) !important; }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--muted) !important; }
+.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.6); }
+.leaflet-control-attribution a { color: var(--brand-strong) !important; }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .animate-in { animation: fade-up 0.35s ease-out both; }

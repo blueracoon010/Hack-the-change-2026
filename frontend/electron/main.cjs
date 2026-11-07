@@ -12,8 +12,8 @@ function createWindow() {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    title: 'Project Spark',
-    backgroundColor: '#f7f6fd',
+    title: 'Nexus',
+    backgroundColor: '#eefaf8',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {

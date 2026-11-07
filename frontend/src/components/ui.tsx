@@ -88,7 +88,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 export function StatCard({ label, value, unit, icon, tone = 'brand', hint }: {
   label: string; value: string; unit?: string; icon?: ReactNode; tone?: 'brand' | 'accent' | 'pink'; hint?: string
 }) {
-  const toneBg = { brand: 'bg-brand-tint text-brand-strong', accent: 'bg-accent-soft text-[#05634f]', pink: 'bg-pink text-[#8a1838]' }[tone]
+  const toneBg = { brand: 'bg-brand-tint text-brand-strong', accent: 'bg-accent-soft text-accent-strong', pink: 'bg-pink text-[#8a1838]' }[tone]
   return (
     <Card as="div" className="animate-in">
       <div className="flex items-center justify-between">
