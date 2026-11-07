@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+
+# Node / Electron
+node_modules/
+dist/
+out/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# ML: data is re-downloadable (python ml/fetch_aeso.py). The trained model IS committed so the demo works on clone.
+ml/data/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

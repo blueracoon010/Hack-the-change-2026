@@ -1,0 +1,17 @@
+# Run the backend in Docker locally (same image you deploy):  docker compose -f cloud/docker-compose.yml up --build
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: cloud/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-local-docker-secret-change-me-please-32b}
+      DATABASE_URL: sqlite:////data/app.db
+      CORS_ORIGINS: http://localhost:5173,file://,null
+    volumes:
+      - api-data:/data
+
+volumes:
+  api-data:

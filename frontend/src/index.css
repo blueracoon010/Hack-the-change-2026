@@ -1,0 +1,101 @@
+@import "tailwindcss";
+@import "@fontsource-variable/nunito";
+
+/* =====================================================================
+   BRAND TOKENS: change these to retheme the whole app.
+   Current palette borrowed from codethechangeyyc.ca (purple + mint).
+   ===================================================================== */
+:root {
+  --brand: #7055fd;        /* primary buttons, active nav (4.8:1 on white, passes WCAG AA) */
+  --brand-strong: #5a3ff0; /* brand-coloured TEXT and links */
+  --brand-soft: #a689ff;   /* gradients, decoration */
+  --brand-tint: #efeaff;   /* soft backgrounds, active nav pill */
+  --accent: #00d3a9;       /* mint: decoration and charts only (low contrast on white) */
+  --accent-soft: #bafbe4;
+  --pink: #ffd2dc;
+
+  --bg: #f7f6fd;
+  --surface: #ffffff;
+  --surface-2: #f1effc;
+  --fg: #17132b;
+  --muted: #5c5874;
+  --line: #e4e1f2;
+  --danger: #c8233f;
+  --success: #08795f;
+  color-scheme: light;
+}
+
+.dark {
+  --brand-strong: #b9a6ff;
+  --brand-tint: #2a2250;
+  --bg: #0f0d1a;
+  --surface: #181528;
+  --surface-2: #221e36;
+  --fg: #f4f2ff;
+  --muted: #aaa5c6;
+  --line: #2f2a48;
+  --danger: #ff6b85;
+  --success: #3ee0b9;
+  color-scheme: dark;
+}
+
+/* High contrast mode (Settings > Accessibility) */
+.hc { --fg: #000; --muted: #1d1d1d; --line: #000; --brand-strong: #3a1ed6; --brand: #4a2ff0; }
+.dark.hc { --fg: #fff; --muted: #f0f0f0; --line: #fff; --brand-strong: #d6ccff; }
+
+@theme inline {
+  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-tint: var(--brand-tint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-pink: var(--pink);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+}
+
+/* Text size setting */
+html[data-text="lg"] { font-size: 112.5%; }
+html[data-text="xl"] { font-size: 125%; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Reduce motion: OS setting OR in-app toggle */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+.skip-link {
+  position: absolute; left: 1rem; top: -100px; z-index: 100;
+  background: var(--brand); color: #fff; padding: 0.6rem 1rem; border-radius: 0.75rem; font-weight: 700;
+}
+.skip-link:focus { top: 1rem; }
+
+.brand-gradient { background: linear-gradient(135deg, #7055fd 0%, #8b6cff 45%, #a689ff 100%); }
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.animate-in { animation: fade-up 0.35s ease-out both; }

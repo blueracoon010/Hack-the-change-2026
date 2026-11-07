@@ -1,0 +1,11 @@
+{
+  "target": "ail_mw",
+  "trained_at": "2026-11-07T05:45:43.421687+00:00",
+  "data_source": "AESO Historical Pool Price report (ets.aeso.ca)",
+  "train_rows": 7895,
+  "test_rows": 717,
+  "mae_mw": 179.8,
+  "mape_pct": 1.67,
+  "baseline_same_hour_yesterday_mae_mw": 190.1,
+  "improvement_vs_baseline_pct": 5.4
+}
