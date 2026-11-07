@@ -196,7 +196,7 @@ export default function Explore() {
                       onClick={() => setCats((prev) => { const n = new Set(prev); if (n.has(c)) n.delete(c); else n.add(c); return n })}
                       className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition',
                         on ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:border-fg/30 hover:text-fg')}>
-                      <Icon className="size-4" aria-hidden style={on ? undefined : { color: meta.color }} />
+                      <Icon className={cx('size-4', !on && 'cat-icon')} aria-hidden style={on ? undefined : { color: meta.color }} />
                       {meta.label}
                     </button>
                   )
