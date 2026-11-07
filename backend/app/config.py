@@ -20,5 +20,15 @@ class Settings:
     cors_origins = _list(os.getenv("CORS_ORIGINS", "http://localhost:5173,file://,null"))
     calgary_app_token = os.getenv("CALGARY_APP_TOKEN", "")
 
+    # Events -> map (see app/events/README.md). A source with no key is skipped, never faked.
+    ticketmaster_api_key = os.getenv("TICKETMASTER_API_KEY", "")
+    meetup_access_token = os.getenv("MEETUP_ACCESS_TOKEN", "")
+    events_center_lat = float(os.getenv("EVENTS_CENTER_LAT", "51.0447"))  # downtown Calgary
+    events_center_lon = float(os.getenv("EVENTS_CENTER_LON", "-114.0719"))
+    events_radius_km = float(os.getenv("EVENTS_RADIUS_KM", "50"))
+    events_days_ahead = int(os.getenv("EVENTS_DAYS_AHEAD", "30"))
+    events_sync_minutes = int(os.getenv("EVENTS_SYNC_MINUTES", "30"))  # 0 = only sync via POST /api/events/sync
+    geocoder_user_agent = os.getenv("GEOCODER_USER_AGENT", "CodeTheChangeYYC-hackathon-events-map/0.1")
+
 
 settings = Settings()

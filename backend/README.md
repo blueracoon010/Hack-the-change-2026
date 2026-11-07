@@ -24,3 +24,4 @@ python -m pytest -q                # auth + privacy flow test
 | `GET /api/calgary/dataset/{id}?limit=&where=&select=&order=` | **Any** data.calgary.ca dataset |
 | `GET /api/calgary/solar/monthly`, `/solar/top-sites` | City solar production example |
 | `GET /api/ml/forecast` | Next 24 h demand forecast from the model in `/ml` |
+| `GET /api/events?lat=&lng=` (and more) | Real events for the map (Ticketmaster, Meetup, community). See [app/events/README.md](app/events/README.md) |
