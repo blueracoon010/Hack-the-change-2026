@@ -41,7 +41,7 @@ export default function Settings() {
     <div className="max-w-3xl space-y-6">
       <PageHeader title="Settings" subtitle="Your profile, display and privacy controls." />
       {!user && <p className="rounded-xl border border-line bg-surface px-4 py-3 text-muted">Development preview: display settings work without an account. Profile and account actions require signing in.</p>}
-      <div aria-live="polite">{message && <p className="rounded-xl bg-accent-soft px-4 py-3 font-bold text-[#05634f]">{message}</p>}</div>
+      <div aria-live="polite">{message && <p className="rounded-xl bg-accent-soft px-4 py-3 font-bold text-accent-strong">{message}</p>}</div>
       {error && <Alert>{error}</Alert>}
 
       <Card aria-labelledby="profile-h">
@@ -74,7 +74,7 @@ export default function Settings() {
 
       <Card aria-labelledby="privacy-h">
         <h2 id="privacy-h" className="mb-2 text-lg font-extrabold">Privacy & your data</h2>
-        <p className="text-muted">We store only your <strong className="text-fg">name</strong>, <strong className="text-fg">email</strong>, a <strong className="text-fg">bcrypt-hashed password</strong> and your sign-up date. Energy and community data come from public sources and are not linked to you. No tracking or analytics.</p>
+        <p className="text-muted">Your account stores your name, email, bcrypt-hashed password, sign-up date, follow relationships, optional social discovery details, posted events, and RSVPs. Prototype profile details and community messages remain in this browser. Export or delete your account data below.</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Button variant="secondary" onClick={exportData} disabled={!user}><Download className="size-4" aria-hidden /> Export my data</Button>
           {!confirmDelete ? (

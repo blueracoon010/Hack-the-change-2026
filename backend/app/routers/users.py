@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlmodel import Session, select, delete, or_
 
 from ..db import get_session
+from ..events.models import Event, EventRsvp
 from ..models import User, Follow, SocialProfile
 from ..schemas import UserOut, UserUpdate
 from ..security import get_current_user
@@ -27,7 +28,9 @@ def export_me(user: User = Depends(get_current_user), session: Session = Depends
         "profile": UserOut.model_validate(user, from_attributes=True).model_dump(mode="json"),
         "connections": [edge.model_dump(mode="json") for edge in session.exec(select(Follow).where(or_(Follow.follower_id == user.id, Follow.following_id == user.id))).all()],
         "social_profile": session.get(SocialProfile, user.id).model_dump(mode="json") if session.get(SocialProfile, user.id) else None,
-        "stored_fields": ["name", "email", "password (hashed with bcrypt, never stored in plain text)", "created_at"],
+        "events_posted": [e.model_dump(mode="json") for e in session.exec(select(Event).where(Event.created_by == user.id))],
+        "rsvps": [r.model_dump(mode="json") for r in session.exec(select(EventRsvp).where(EventRsvp.user_id == user.id))],
+        "stored_fields": ["name", "email", "password (hashed with bcrypt, never stored in plain text)", "created_at", "connections", "optional social profile", "events you posted", "event RSVPs"],
     }
 
 
@@ -35,6 +38,9 @@ def export_me(user: User = Depends(get_current_user), session: Session = Depends
 def delete_me(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
     session.exec(delete(Follow).where(or_(Follow.follower_id == user.id, Follow.following_id == user.id)))
     session.exec(delete(SocialProfile).where(SocialProfile.user_id == user.id))
+    mine = session.exec(select(Event.id).where(Event.created_by == user.id)).all()
+    session.exec(delete(EventRsvp).where((EventRsvp.user_id == user.id) | EventRsvp.event_id.in_(mine)))
+    session.exec(delete(Event).where(Event.created_by == user.id))
     session.delete(user)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

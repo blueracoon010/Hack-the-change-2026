@@ -1,20 +1,19 @@
 // ADD A PAGE: create src/pages/MyPage.tsx, then add ONE line below. The route and sidebar icon appear automatically.
 // Icons: https://lucide.dev/icons
 import type { LucideIcon } from 'lucide-react'
-import { House, Zap, MapPin, UserRound, Settings as SettingsIcon } from 'lucide-react'
+import { Map as MapIcon, Users, UserRound, Settings as SettingsIcon } from 'lucide-react'
 import type { ReactElement } from 'react'
-import Home from '../pages/Home'
-import Energy from '../pages/Energy'
-import Community from '../pages/Community'
+import Explore from '../pages/Explore'
 import Settings from '../pages/Settings'
+import Community from '../pages/Community'
 import Profile from '../pages/Profile'
 
-export type NavItem = { path: string; label: string; icon: LucideIcon; element: ReactElement }
+/** `fullBleed` pages fill the window under the top bar with no padding (used by the map). */
+export type NavItem = { path: string; label: string; icon: LucideIcon; element: ReactElement; fullBleed?: boolean }
 
 export const NAV: NavItem[] = [
-  { path: '/', label: 'Home', icon: House, element: <Home /> },
-  { path: '/energy', label: 'Energy', icon: Zap, element: <Energy /> },
-  { path: '/community', label: 'Community', icon: MapPin, element: <Community /> },
+  { path: '/', label: 'Explore', icon: MapIcon, element: <Explore />, fullBleed: true },
+  { path: '/community', label: 'Community', icon: Users, element: <Community /> },
   { path: '/profile', label: 'Profile', icon: UserRound, element: <Profile /> },
   { path: '/settings', label: 'Settings', icon: SettingsIcon, element: <Settings /> },
 ]

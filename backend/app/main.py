@@ -5,13 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import init_db
+from .events.router import router as events_router
+from .events.sync import start_background_sync
 from .routers import auth, calgary, energy, ml, users, social
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    sync_task = start_background_sync()
     yield
+    if sync_task:
+        sync_task.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -24,7 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router):
+for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, events_router):
     app.include_router(r)
 
 

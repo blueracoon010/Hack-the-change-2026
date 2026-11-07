@@ -94,6 +94,10 @@ def test_social_discovery_and_invitations():
         assert invite.json() == {'id': a, 'name': 'SocialA', 'instagram': 'social_a'}
         # Public invite tokens must NEVER authorize API actions as the inviter.
         assert client.get('/api/auth/me', headers={'Authorization': f'Bearer {token}'}).status_code == 401
+        from fastapi.security import HTTPAuthorizationCredentials
+        from app.events.router import optional_user_id
+        assert optional_user_id(HTTPAuthorizationCredentials(scheme='Bearer', credentials=token)) is None
+        assert optional_user_id(HTTPAuthorizationCredentials(scheme='Bearer', credentials=auth_a['Authorization'].split()[1])) == a
         assert client.get('/api/social/invite/bad-token').status_code == 404
         assert client.get(f"/api/social/invite/{auth_a['Authorization'].split()[1]}").status_code == 404
         client.put('/api/social/profile', json={'interests': ['Books'], 'discoverable': True}, headers=auth_b)

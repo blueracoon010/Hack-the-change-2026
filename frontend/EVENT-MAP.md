@@ -1,11 +1,20 @@
-﻿# Event map homepage
+﻿# Integrated event map
 
-The Home route uses Leaflet and OpenStreetMap tiles (internet required), with six explicitly fictional Calgary sample events. Existing sign-in requirements remain in place.
+The main route now uses the team's `Explore.tsx` / `NexusMap.tsx`, reading real event data from `GET /api/events`. Profile, Community, Settings, invitations, and development login bypass remain available. The previous `Home.tsx` sample-map implementation is retained but is not routed as the homepage.
 
-Run `npm run dev` in `frontend/` and sign in to view Home. The project tooling requires Node 22.12+ (or another version supported by Vite).
+## Run
 
-## Ticketmaster handoff
+Start the backend from `backend/` with `.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload`.
+Start the frontend from `frontend/` with `npm run dev` and open http://localhost:5173.
 
-Replace `getEvents()` in `src/lib/events.ts` with a call to your backend. Return `CommunityEvent[]`; the UI does not depend on Ticketmaster's raw response shape. Map the provider event ID, title, classification, venue coordinates, start datetime with timezone, and price into this contract. For missing prices, extend the contract to represent unknown pricing rather than treating it as free. Community-only demo entries are illustrative and are not claimed to exist in Ticketmaster.
+## Ticketmaster setup
 
-Search and category/free filters update both markers and results. Selecting a marker or card opens details. Directions opens Google Maps. Bookmarks are temporary for the current page session; they are not saved to an account.
+Add `TICKETMASTER_API_KEY=your_consumer_key` to `backend/.env` (keep this file private), then restart the backend. No Ticketmaster key was configured on this machine during integration. With the default `EVENTS_SYNC_MINUTES=30`, the backend starts a sync immediately and repeats it every 30 minutes. Wait for that first sync, then use Retry / refresh the map; the feed also refreshes every five minutes. If automatic syncing is disabled, sign in and use `POST /api/events/sync` in the API docs.
+
+Check http://localhost:8000/api/events/status for configured sources and sync results, and http://localhost:8000/api/events for listings. With no source keys the map displays only real community-posted events, which may mean no pins. No sample events are substituted into the main feed.
+
+Google Maps is optional: add `VITE_GOOGLE_MAPS_API_KEY` to `frontend/.env` to use it. Otherwise OpenStreetMap/Leaflet works without a map API key. Internet is required for map tiles.
+
+Map RSVPs/buddy requests use authenticated backend endpoints; browsing needs no login in development. Bookmarks/reminder controls and the people-map previews are still local/demo features. Manage actual followers and following under Profile. Profile/Community logic was preserved during the merge.
+
+Node 22.12+ is recommended by the current Vite tooling. Backend tests and the production build are the integration checks; live Ticketmaster testing needs a configured key.

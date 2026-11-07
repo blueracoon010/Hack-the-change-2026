@@ -1,11 +1,12 @@
 // Split-screen layout for Login / Sign up: brand panel on the left, form on the right.
 import type { ReactNode } from 'react'
-import { Accessibility, BarChart3, ShieldCheck } from 'lucide-react'
+import { Accessibility, Camera, ShieldCheck, Users } from 'lucide-react'
 import { APP } from '../config/app'
 import { Logo } from './Logo'
 
 const FEATURES = [
-  { icon: BarChart3, text: 'Live, real data from AESO and the City of Calgary' },
+  { icon: Camera, text: 'Snap a community flyer and it lands on the map' },
+  { icon: Users, text: 'Find a neighbour to go with, so nobody shows up alone' },
   { icon: Accessibility, text: 'Built for everyone: keyboard, screen reader and text size friendly' },
   { icon: ShieldCheck, text: 'Your data stays yours: export or delete it any time' },
 ]
@@ -15,7 +16,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <aside className="brand-gradient relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div aria-hidden className="absolute -right-24 -top-24 size-96 rounded-full bg-white/10" />
-        <div aria-hidden className="absolute -bottom-32 -left-16 size-[28rem] rounded-full bg-[#00d3a9]/25 blur-2xl" />
+        <div aria-hidden className="absolute -bottom-32 -left-16 size-[28rem] rounded-full bg-[#5eead4]/30 blur-2xl" />
         <Logo light />
         <div className="relative">
           <h2 className="max-w-md text-4xl font-extrabold leading-tight">{APP.tagline}</h2>
