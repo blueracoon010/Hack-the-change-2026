@@ -65,17 +65,17 @@ export function DayPicker({ value, onChange, onClear, counts }: {
 
   return (
     <>
-      <div className={cx('inline-flex shrink-0 items-center rounded-xl border p-1', value ? 'border-brand bg-brand text-white' : 'border-line bg-surface')}>
+      <div className={cx('inline-flex shrink-0 items-center rounded-xl border p-1', value ? 'border-brand bg-brand text-on-brand' : 'border-line bg-surface')}>
         <button ref={button} type="button" onClick={() => { setMonth((value ?? today).slice(0, 7)); setOpen((o) => !o) }}
           aria-haspopup="dialog" aria-expanded={open} aria-label={value ? `Showing events on ${label(value, { weekday: 'long', month: 'long', day: 'numeric' })}. Change day` : 'Pick a day'}
           title="Pick a day"
-          className={cx('inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-bold transition', value ? 'text-white' : 'text-muted hover:text-fg')}>
+          className={cx('inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-bold transition', value ? 'text-on-brand' : 'text-muted hover:text-fg')}>
           <CalendarDays className="size-4" aria-hidden />
           {value && <span>{value === today ? 'Today' : label(value, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
         </button>
         {value && (
           <button type="button" onClick={onClear} aria-label="Clear the day" title="Clear the day"
-            className="grid size-7 place-items-center rounded-lg text-white/90 hover:bg-white/15">
+            className="grid size-7 place-items-center rounded-lg text-on-brand/80 hover:bg-navy/10">
             <X className="size-3.5" aria-hidden />
           </button>
         )}
@@ -107,7 +107,7 @@ export function DayPicker({ value, onChange, onClear, counts }: {
                   data-today={key === today ? '' : undefined}
                   aria-label={`${label(key, { weekday: 'long', month: 'long', day: 'numeric' })}, ${n === 0 ? 'no events' : `${n} event${n === 1 ? '' : 's'}`}`}
                   className={cx('relative grid h-10 place-items-center rounded-lg text-sm transition disabled:cursor-default disabled:opacity-30',
-                    selected ? 'bg-brand font-extrabold text-white' : 'hover:bg-surface-2',
+                    selected ? 'bg-brand font-extrabold text-on-brand' : 'hover:bg-surface-2',
                     !selected && key === today && 'font-extrabold text-brand-strong ring-1 ring-brand/50',
                     !selected && outside && 'text-muted',
                     !selected && n > 0 && 'font-bold')}>

@@ -53,7 +53,7 @@ export default function Invite() {
         <p className="text-sm font-bold uppercase tracking-widest text-brand-strong">You’re invited</p>
         {person ? <>
           <div className="mt-5 flex items-center gap-4">
-            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-brand text-2xl font-extrabold text-white" aria-hidden>{person.name[0]?.toUpperCase()}</span>
+            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-brand text-2xl font-extrabold text-on-brand" aria-hidden>{person.name[0]?.toUpperCase()}</span>
             <h1 className="text-3xl font-extrabold leading-tight">{user?.id === person.id ? 'This is your invite' : `${person.name} invited you`}</h1>
           </div>
           <p className="my-5 text-muted">{APP.name} shows what’s on around you in Calgary, and who you know is going. Friends see each other’s plans and can go together.</p>

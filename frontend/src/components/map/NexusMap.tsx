@@ -148,7 +148,7 @@ function LeafletNexusMap({ events, people, selected, onSelect, highlightEventIds
         )
       })}
       {userPos && <Marker position={userPos} title="You are here" icon={icon(<YouPin />, 'You are here', 20, 20, 10)} interactive={false} />}
-      {distanceOrigin && <CircleMarker center={distanceOrigin} radius={9} interactive={false} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#7055fd', fillOpacity: 1 }} />}
+      {distanceOrigin && <CircleMarker center={distanceOrigin} radius={9} interactive={false} pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#EFAC29', fillOpacity: 1 }} />}
     </MapContainer>
   )
 }

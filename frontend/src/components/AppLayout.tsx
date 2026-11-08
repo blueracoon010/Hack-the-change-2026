@@ -19,7 +19,7 @@ export function AppLayout() {
     <div className="flex min-h-screen">
       <a href="#main" className="skip-link" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to content</a>
 
-      <aside className={cx('sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-surface p-3 transition-all md:flex', collapsed ? 'w-20' : 'w-64')}>
+      <aside className={cx('sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-sidebar p-3 transition-all md:flex', collapsed ? 'w-20' : 'w-64')}>
         <div className={cx('mb-6 flex items-center px-2 pt-2', collapsed ? 'justify-center' : 'justify-between')}>
           <Logo compact={collapsed} />
         </div>
@@ -50,7 +50,7 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <p className="text-sm font-bold">{user?.name}</p>
-            <span className="grid size-10 place-items-center rounded-full bg-pink font-extrabold text-[#8a1838]" aria-hidden>
+            <span className="grid size-10 place-items-center rounded-full bg-pink font-extrabold text-navy" aria-hidden>
               {user?.name?.[0]?.toUpperCase() ?? '?'}
             </span>
             <button type="button" onClick={logout} aria-label="Sign out" title="Sign out"

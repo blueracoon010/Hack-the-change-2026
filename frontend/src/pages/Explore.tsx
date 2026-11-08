@@ -178,7 +178,7 @@ export default function Explore() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 md:p-6 lg:h-full">
         {/* Heading */}
         <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Calgary · your neighbourhood</p>
+          <p className="text-sm font-semibold text-muted">Calgary · your neighbourhood</p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight">What’s on around you</h1>
         </div>
 
@@ -235,7 +235,7 @@ export default function Explore() {
                       onClick={() => setCats((prev) => { const n = new Set(prev); if (n.has(c)) n.delete(c); else n.add(c); return n })}
                       className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition',
                         on ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:border-fg/30 hover:text-fg')}>
-                      <Icon className={cx('size-4', !on && 'cat-icon')} aria-hidden style={on ? undefined : { color: meta.color }} />
+                      <Icon className="size-4" aria-hidden />
                       {meta.label}
                     </button>
                   )
@@ -261,10 +261,10 @@ export default function Explore() {
         {rsvpError && <p role="alert" className="text-sm text-danger">{rsvpError}</p>}
         {/* Map card | cards */}
         <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <section aria-labelledby="map-title" className="flex h-[60vh] min-h-80 flex-col rounded-3xl border border-line bg-surface/85 p-4 shadow-sm backdrop-blur md:p-5 lg:h-auto lg:min-h-0">
+          <section aria-labelledby="map-title" className="flex h-[60vh] min-h-80 flex-col rounded-3xl border border-line bg-surface p-4 md:p-5 lg:h-auto lg:min-h-0">
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Nearby</p>
+                <p className="text-sm font-semibold text-muted">Nearby</p>
                 <h2 id="map-title" className="text-2xl font-extrabold tracking-tight">Map view</h2>
               </div>
               <p className="text-sm font-semibold text-muted">
@@ -363,7 +363,7 @@ function OwnerBadges({ event: e }: { event: NexusEvent }) {
   if (!e.mine && e.visibility !== 'private') return null
   return (
     <>
-      {e.mine && <span className="inline-flex items-center gap-1 rounded-full bg-brand px-3 py-1 text-sm font-semibold text-white"><Sparkles className="size-3.5" aria-hidden />Your event</span>}
+      {e.mine && <span className="inline-flex items-center gap-1 rounded-full bg-brand px-3 py-1 text-sm font-semibold text-on-brand"><Sparkles className="size-3.5" aria-hidden />Your event</span>}
       {e.visibility === 'private' && <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-3 py-1 text-sm font-semibold text-fg"><Lock className="size-3.5" aria-hidden />Friends only</span>}
     </>
   )
@@ -391,11 +391,33 @@ function DistanceBadge({ km }: { km: number }) {
   )
 }
 
+/** The event's photo (Ticketmaster / Meetup), or a soft panel with its category icon when there isn't one. */
+function EventCover({ event: e, className }: { event: NexusEvent; className?: string }) {
+  const [broken, setBroken] = useState(false)
+  const cat = CATEGORIES[e.categories[0]] ?? CATEGORIES.social
+  const Icon = cat.icon
+  if (e.imageUrl && !broken) {
+    return <img src={e.imageUrl} alt="" loading="lazy" onError={() => setBroken(true)} className={cx('w-full object-cover', className)} />
+  }
+  return (
+    <div className={cx('grid w-full place-items-center bg-surface-2', className)} aria-hidden>
+      <span className="grid size-12 place-items-center rounded-2xl bg-surface text-muted ring-1 ring-line"><Icon className="size-6" /></span>
+    </div>
+  )
+}
+
 function EventCard({ event: e, km, going, saved, onSave, onView }: {
   event: NexusEvent; km: number; going: boolean; saved: boolean; onSave: () => void; onView: () => void
 }) {
   return (
-    <article className="nexus-card rounded-3xl border border-line p-5 shadow-sm transition hover:shadow-md">
+    <article className="nexus-card overflow-hidden rounded-3xl border border-line shadow-sm transition hover:shadow-md">
+      <button type="button" onClick={onView} tabIndex={-1} aria-hidden className="relative block w-full">
+        <EventCover event={e} className="aspect-[16/7]" />
+        {e.source && e.source !== 'community' && e.imageUrl && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white">{SOURCE_LABEL[e.source]}</span>
+        )}
+      </button>
+      <div className="p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-muted">
@@ -421,13 +443,14 @@ function EventCard({ event: e, km, going, saved, onSave, onView }: {
         <SaveButton saved={saved} onSave={onSave} label={e.title} />
         {going && <span className="inline-flex items-center gap-1 text-sm font-bold text-success"><Check className="size-4" aria-hidden /> You’re going</span>}
       </div>
+      </div>
     </article>
   )
 }
 
 function Avatar({ person, size = 'md' }: { person: Person; size?: 'sm' | 'md' | 'lg' }) {
   const s = { sm: 'size-8 text-[11px]', md: 'size-12 text-base', lg: 'size-16 text-xl' }[size]
-  return <span className={cx('grid shrink-0 place-items-center rounded-full font-extrabold text-white', s)} style={{ background: person.color }} aria-hidden>{initials(person.name)}</span>
+  return <span className={cx('grid shrink-0 place-items-center rounded-full bg-pink font-extrabold text-navy', s)} aria-hidden>{initials(person.name)}</span>
 }
 
 
@@ -460,6 +483,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
 
   return (
     <DetailCard label={`Event details: ${e.title}`} backLabel={backLabel} onClose={onClose}>
+      {e.imageUrl && <EventCover event={e} className="mb-5 aspect-[16/8] rounded-2xl" />}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-extrabold leading-tight tracking-tight">{e.title}</h2>

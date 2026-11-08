@@ -7,6 +7,7 @@ import {
   MapPin, Plus, RefreshCw, Repeat, Sparkles, Trash2, UserPlus, Users, X,
 } from 'lucide-react'
 import { Alert, Button, Card, cx, Field, Switch } from '../components/ui'
+import { catInk } from '../components/map/Pins'
 import { api } from '../lib/api'
 import { calgaryDay, CATEGORIES, fmtCalgary, fromCalgaryInput, type Category } from '../lib/nexus'
 import {
@@ -130,7 +131,7 @@ export default function Plan() {
         </div>
         <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-muted" aria-label="Legend">
           {(['work', 'class', 'me_time', 'open', 'event'] as Kind[]).map(k => { const Icon = KINDS[k].icon; return <li key={k} className="flex items-center gap-1"><Icon size={13} aria-hidden />{KINDS[k].label}</li> })}
-          <li className="flex items-center gap-1"><span className="size-3 rounded-sm bg-success/25 ring-1 ring-success" aria-hidden />All free</li>
+          <li className="flex items-center gap-1"><span className="size-3 rounded-sm bg-free-tint ring-1 ring-free" aria-hidden />All free</li>
         </ul>
       </Card>
 
@@ -168,9 +169,9 @@ export default function Plan() {
                       if (calgaryDay(new Date(w.start)) !== day) return null
                       const t = topOf(minutesInto(day, w.start)), b = topOf(minutesInto(day, w.end))
                       return <button key={i} type="button" onClick={() => setSelected(i)} title={`Everyone free ${fmtRange(w.start, w.end)}`}
-                        className={cx('absolute inset-x-0.5 flex items-start rounded-md border-l-4 border-success px-1 pt-0.5 text-left transition', selected === i ? 'bg-success/35 ring-2 ring-success' : 'bg-success/15 hover:bg-success/30', w.preferred && 'ring-1 ring-success')}
+                        className={cx('absolute inset-x-0.5 flex items-start rounded-md border-l-4 border-free bg-free-tint px-1 pt-0.5 text-left transition hover:brightness-[0.97]', selected === i && 'ring-2 ring-fg', w.preferred && selected !== i && 'ring-1 ring-free')}
                         style={{ top: t, height: b - t }}>
-                        {b - t >= 28 && <span className="block truncate text-[10px] font-extrabold uppercase tracking-wide text-success" aria-hidden>All free</span>}
+                        {b - t >= 28 && <span className="block truncate text-[11px] font-bold text-fg" aria-hidden>Free</span>}
                         <span className="sr-only">Everyone free {fmtRange(w.start, w.end)}</span>
                       </button>
                     })}
@@ -181,11 +182,11 @@ export default function Plan() {
                         if (e <= DAY_START_H * 60 || s >= DAY_END_H * 60 || clip(e) - clip(s) <= 0) return null
                         const Icon = KINDS[b.kind]?.icon
                         const open = b.kind === 'open'
-                        const style = { top: topOf(s), height: Math.max(topOf(e) - topOf(s), 6), left: `calc(${(pi / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`, ...(open ? { borderColor: color, color } : { background: color }) }
+                        const style = { top: topOf(s), height: Math.max(topOf(e) - topOf(s), 6), left: `calc(${(pi / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`, ...(open ? { borderColor: color.bg, color: 'var(--fg)' } : { background: color.bg, color: color.ink }) }
                         const tip = `${p.me ? 'You' : p.name}: ${b.label || KINDS[b.kind]?.label} ${fmtRange(b.start, b.end)}`
                         return <button key={`${p.id}-${bi}`} type="button" title={tip} aria-label={tip}
                           onClick={() => p.me && (b.id ? setOpenBlock(b) : b.eventId && navigate('/', { state: { focusEventId: b.eventId } }))}
-                          className={cx('absolute z-10 grid place-items-start overflow-hidden rounded-md p-0.5', open ? 'border-2 border-dashed bg-surface/70' : 'text-white opacity-90 hover:opacity-100', !p.me && 'cursor-default')}
+                          className={cx('absolute z-10 grid place-items-start overflow-hidden rounded-md p-0.5', open ? 'border-2 border-dashed bg-surface/80' : 'hover:brightness-95', !p.me && 'cursor-default')}
                           style={style}>
                           {Icon && topOf(e) - topOf(s) > 18 && <Icon size={12} aria-hidden />}
                         </button>
@@ -207,7 +208,7 @@ export default function Plan() {
               {best.map(w => (
                 <li key={w.i}>
                   <button type="button" onClick={() => setSelected(w.i)} aria-pressed={selected === w.i}
-                    className={cx('flex w-full items-center gap-3 rounded-xl border p-3 text-left transition', selected === w.i ? 'border-success bg-success/10' : 'border-line hover:bg-surface-2')}>
+                    className={cx('flex w-full items-center gap-3 rounded-xl border p-3 text-left transition', selected === w.i ? 'border-free bg-free-tint' : 'border-line hover:bg-surface-2')}>
                     <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-2 text-center leading-none">
                       <span className="text-[10px] font-bold uppercase text-muted">{dayLabel(calgaryDay(new Date(w.start)), { weekday: 'short' })}<br /><span className="text-base text-fg">{dayLabel(calgaryDay(new Date(w.start)), { day: 'numeric' })}</span></span>
                     </span>
@@ -215,7 +216,7 @@ export default function Plan() {
                       <span className="block text-sm font-bold">{fmtRange(w.start, w.end)}</span>
                       <span className="flex items-center gap-2 text-xs text-muted"><Clock size={12} aria-hidden />{fmtHours(w.minutes)}{w.fits > 0 && <><MapPin size={12} aria-hidden />{w.fits}</>}</span>
                     </span>
-                    {w.preferred && <Sparkles size={16} className="shrink-0 text-success" aria-label="Someone marked this open to plans" />}
+                    {w.preferred && <Sparkles size={16} className="shrink-0 text-accent-strong" aria-label="Someone marked this open to plans" />}
                   </button>
                 </li>
               ))}
@@ -241,7 +242,7 @@ export default function Plan() {
                   const cat = CATEGORIES[f.categories[0] as Category]; const Icon = cat?.icon ?? MapPin
                   return <li key={f.id}>
                     <button type="button" onClick={() => navigate('/', { state: { focusEventId: f.id } })} className="flex w-full items-start gap-3 rounded-xl border border-line p-3 text-left hover:bg-surface-2">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-lg text-white" style={{ background: cat?.color ?? 'var(--brand)' }}><Icon size={16} aria-hidden /></span>
+                      <span className="grid size-9 shrink-0 place-items-center rounded-lg" style={{ background: cat?.color ?? 'var(--brand)', color: catInk(cat?.color ?? 'var(--cat-social)') }}><Icon size={16} aria-hidden /></span>
                       <span className="min-w-0 flex-1"><span className="block text-sm font-bold leading-snug">{f.title}</span><span className="block truncate text-xs text-muted">{fmtClock(f.start)}{f.venue && ` · ${f.venue}`}</span></span>
                       <ExternalLink size={14} className="mt-1 shrink-0 text-muted" aria-hidden />
                     </button>
@@ -275,11 +276,11 @@ function Stat({ icon: Icon, value, label }: { icon: typeof Users; value: string 
   </div>
 }
 
-function PersonChip({ name, color, active, fixed, locked, onClick }: { name: string; color: string; active: boolean; fixed?: boolean; locked?: boolean; onClick?: () => void }) {
+function PersonChip({ name, color, active, fixed, locked, onClick }: { name: string; color: { bg: string; ink: string }; active: boolean; fixed?: boolean; locked?: boolean; onClick?: () => void }) {
   return <button type="button" onClick={onClick} disabled={fixed || locked} aria-pressed={active}
     title={locked ? `${name} isn't sharing their schedule` : undefined}
     className={cx('flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm font-bold transition', active ? 'border-transparent bg-surface-2' : 'border-line text-muted hover:bg-surface-2', locked && 'opacity-60', fixed && 'cursor-default')}>
-    <span className="grid size-7 place-items-center rounded-full text-xs text-white" style={{ background: active ? color : 'var(--muted)' }} aria-hidden>{initials(name)}</span>
+    <span className="grid size-7 place-items-center rounded-full text-xs" style={active ? { background: color.bg, color: color.ink } : { background: 'var(--line)', color: 'var(--muted)' }} aria-hidden>{initials(name)}</span>
     <span className="truncate">{name}</span>
     {locked ? <Lock size={13} aria-label="Not sharing" /> : active && !fixed ? <Check size={14} aria-hidden /> : null}
   </button>

@@ -48,7 +48,7 @@ function Group({ title, events, reminders, onChange, past, empty }: {
 }) {
   return (
     <section aria-label={`${title} saved events`}>
-      <h3 className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-muted">{title} · {events.length}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-muted">{title} · {events.length}</h3>
       {events.length === 0 ? <p className="text-sm text-muted">{empty}</p> : (
         <ul className="space-y-2">{events.map((e) => <li key={e.id}><SavedRow event={e} reminder={reminders.has(e.id)} past={past} onChange={onChange} /></li>)}</ul>
       )}

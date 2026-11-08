@@ -23,8 +23,15 @@ export const KINDS: Record<Kind, { label: string; icon: LucideIcon }> = {
 }
 export const BLOCKABLE: Kind[] = ['busy', 'work', 'class', 'me_time', 'open']
 
-/** Lane colours: you, then friends. Theme-aware CSS variables (src/index.css). */
-export const PERSON_COLORS = ['var(--brand)', 'var(--cat-arts)', 'var(--cat-tech)', 'var(--cat-social)', 'var(--cat-sports)', 'var(--cat-food)', 'var(--cat-family)', 'var(--cat-learning)', 'var(--cat-volunteer)']
+/** Lane colours (you first, then friends), from the five brand colours and blends of them; `ink` is the readable text colour on top.
+ *  Yellow is left out on purpose: it means "everyone is free". */
+export const PERSON_COLORS = [
+  { bg: 'var(--fg)', ink: 'var(--bg)' },          // you: navy (warm white in dark mode)
+  { bg: 'var(--brand-soft)', ink: 'var(--fg)' },  // pastel blue
+  { bg: '#5F6276', ink: '#fff' },                 // slate: navy 70% on white
+  { bg: 'var(--mustard)', ink: 'var(--navy)' },
+  { bg: '#3A3E5C', ink: '#fff' },                 // navy 88% on white
+]
 
 export const DAY_START_H = 8
 export const DAY_END_H = 22

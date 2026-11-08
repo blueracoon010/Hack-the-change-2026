@@ -3,81 +3,144 @@
 
 /* =====================================================================
    BRAND TOKENS: change these to retheme the whole app.
-   Current palette borrowed from codethechangeyyc.ca (purple + mint).
+   Soft and light: pastel sky blue for actions, mustard #EFAC29 and sunshine #FFD23F as warm accents, navy #1B1F3B text, on white.
+   Other values are blends of those (noted beside each). All text pairs pass WCAG AA (4.5:1).
    ===================================================================== */
 :root {
-  --brand: #0f766e;        /* teal: primary buttons, active states (5.5:1 with white text, passes WCAG AA) */
-  --brand-strong: #0b5f59; /* teal TEXT and links */
-  --brand-soft: #8cc9c0;   /* decoration */
-  --brand-tint: #d9f0ec;   /* soft teal backgrounds, badges */
-  --accent: #7cc4ba;       /* turquoise: decoration only */
-  --accent-soft: #dcf0f2;  /* turquoise tag chips */
-  --accent-strong: #155e75;/* text on turquoise chips */
-  --pink: #ffd9e3;
-  --card-tint: #e3f8f5;    /* turquoise wash at the corner of cards */
+  --sunshine: #FFD23F;
+  --mustard: #EFAC29;
+  --navy: #1B1F3B;
+  --ink: #161616;          /* text: almost black, softer than pure #000 */
+  --sky: #5B9BFF;
+  --pastel: #D1E3FF;       /* sky 28% on white */
+  --warm-white: #FFFBF2;
 
-  --bg: #eefaf8;
+  --brand: var(--pastel);  /* primary buttons, active states: soft pastel blue */
+  --on-brand: var(--ink);  /* text on pastel blue */
+  --brand-hover: #C6DCFF;  /* sky 35% on white */
+  --brand-edge: #B5D2FF;   /* sky 45% on white: button outline so it holds its shape on white */
+  --brand-strong: #314A80; /* sky 35% + navy: links and coloured icons, quiet but readable (8:1) */
+  --brand-soft: #B5D2FF;   /* decoration */
+  --brand-tint: #EEF5FF;   /* sky 10% on white: selected chips, active nav */
+  --accent: var(--mustard);
+  --accent-soft: #EEF5FF;  /* tag chips: very light blue */
+  --accent-strong: #314A80;/* text on tag chips */
+  --pink: var(--mustard);  /* avatar circles, navy initials (8:1) */
+  --free: var(--sunshine); /* "everyone is free" in the planner */
+  --free-tint: #FFF2C5;    /* sunshine 30% on white */
+  --card-tint: #ffffff;
+  --sidebar: #FFF5D5;      /* sunshine 22% on white: the soft yellow side panel */
+  /* Neutral greys: community cards and the Discord-style chat */
+  --grey-card: #F6F7F8;    /* inside of community cards */
+  --chat-rail: #E3E5E8;    /* communities rail */
+  --chat-side: #F2F3F5;    /* channel list */
+  --chat-main: #FFFFFF;    /* messages */
+  --chat-hover: #F2F3F5;   /* message hover */
+  --chat-input: #EBEDEF;   /* message box */
+  --chat-active: #D7DADF;  /* selected channel */
+
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f1faf9;
-  --fg: #0f2422;
-  --muted: #4c6563;
-  --line: #d3ebe7;
-  --danger: #c8233f;
-  --success: #0f7a55;
+  --surface-2: #FAF8F3;    /* navy 2% + sunshine 3% on white: hover rows */
+  --fg: var(--ink);        /* near-black body text */
+  --muted: #5F6368;        /* neutral grey for secondary text (6:1) */
+  --line: #E6E7E9;         /* neutral hairline */
+  --danger: #B3261E;
+  --on-danger: #ffffff;
+  --success: #314A80;
 
-  /* Event category colours (map pins, filter icons) */
-  --cat-tech: #5b4fc4;
-  --cat-social: #c4587c;
-  --cat-outdoors: #0e8a5f;
-  --cat-arts: #c2410c;
-  --cat-food: #b45309;
-  --cat-sports: #0369a1;
-  --cat-family: #7a52c7;
-  --cat-learning: #4338ca;
-  --cat-wellness: #15803d;
-  --cat-volunteer: #be123c;
+  /* Event categories in four warm families, so the map stays calm:
+     people (mustard) · creative & food (pastel blue) · active (butter) · mind (navy) */
+  --cat-social: var(--mustard); --cat-family: var(--mustard); --cat-volunteer: var(--mustard);
+  --cat-arts: var(--pastel); --cat-food: var(--pastel);
+  --cat-outdoors: #F6D189; --cat-sports: #F6D189; --cat-wellness: #F6D189;
+  --cat-tech: var(--navy); --cat-learning: var(--navy);
+  /* Icon colour on each category pin */
+  --cat-ink-social: var(--navy); --cat-ink-family: var(--navy); --cat-ink-volunteer: var(--navy);
+  --cat-ink-arts: var(--navy); --cat-ink-food: var(--navy);
+  --cat-ink-outdoors: var(--navy); --cat-ink-sports: var(--navy); --cat-ink-wellness: var(--navy);
+  --cat-ink-tech: #fff; --cat-ink-learning: #fff;
   color-scheme: light;
 }
 
 .dark {
-  /* Cool ink neutrals (no green cast), same teal family as light mode, softened for dark backgrounds */
-  --brand: #2b7069;        /* buttons, active tab (5.8:1 with white text) */
-  --brand-hover: #245f59;
-  --brand-strong: #86c2b9; /* teal text and links */
-  --brand-soft: #4a7f79;
-  --brand-tint: #1c3331;   /* selected chips, distance badges */
-  --accent: #6f9e99;
-  --accent-soft: #232c33;  /* tag chips: neutral slate */
-  --accent-strong: #b4c6d0;
-  --card-tint: #191e22;
+  /* Navy page, warm-white text, the same blue and yellow */
+  --brand: #B5D2FF;        /* pastel blue reads well on navy, with navy text (10:1) */
+  --brand-hover: #C6DCFF;
+  --brand-edge: #B5D2FF;
+  --brand-strong: #B5D2FF;
+  --brand-soft: #3A5180;
+  --brand-tint: #2B3E6C;   /* sky 25% + navy */
+  --accent-soft: #2B3E6C;
+  --accent-strong: #C6DCFF;
+  --free-tint: #4D463C;    /* sunshine 22% + navy */
+  --card-tint: #262A45;
+  --sidebar: var(--navy);
+  --grey-card: var(--surface);
+  --chat-rail: #15182F;
+  --chat-side: var(--bg);
+  --chat-main: var(--surface);
+  --chat-hover: var(--surface-2);
+  --chat-input: var(--surface-2);
+  --chat-active: #3F435A;
 
-  --bg: #111518;
-  --surface: #191e22;
-  --surface-2: #21282d;
-  --fg: #e7eaed;
-  --muted: #9aa4ad;
-  --line: #2d353c;
-  --danger: #ec9393;
-  --success: #8fc29c;
-  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
-
-  /* Muted, earthy category colours: bright ones glare on a dark background */
-  --cat-tech: #3e5c76;
-  --cat-social: #9a4545;
-  --cat-outdoors: #4f6b3a;
-  --cat-arts: #6e4583;
-  --cat-food: #994f20;
-  --cat-sports: #2c6a7a;
-  --cat-family: #85566f;
-  --cat-learning: #4a5577;
-  --cat-wellness: #557560;
-  --cat-volunteer: #a5523a;
+  --bg: var(--navy);
+  --surface: #262A45;      /* white 5% + navy */
+  --surface-2: #32354F;    /* white 10% + navy */
+  --fg: var(--warm-white);
+  --muted: #B6B5B7;        /* warm white 68% + navy (7.9:1) */
+  --line: #3F435A;
+  --danger: #F2A29C;
+  --on-danger: var(--navy);
+  --success: #B5D2FF;
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset;
+  --cat-tech: var(--warm-white); --cat-learning: var(--warm-white);
+  --cat-ink-tech: var(--navy); --cat-ink-learning: var(--navy);
   color-scheme: dark;
 }
 
+/* Discord-style dark charcoal, used on the Community page's cards and chat (light or dark app theme).
+   Add class="discord" to a container and everything inside picks up these colours. */
+.discord {
+  --bg: #313338;
+  --surface: #36383E;
+  --surface-2: #42454C;
+  --fg: #F2F3F5;
+  --muted: #B5BAC1;        /* 7:1 on #313338 */
+  --line: #4A4D55;
+  --brand: #9DB8E8;        /* muted blue that reads on charcoal, black text on it */
+  --brand-hover: #B0C6EE;
+  --brand-edge: #9DB8E8;
+  --on-brand: #161616;
+  --brand-strong: #9DB8E8;
+  --brand-tint: #3A4560;
+  --accent-soft: #3A4560;
+  --accent-strong: #C9D8F3;
+  --danger: #F28B82;
+  --on-danger: #161616;
+  --grey-card: #36383E;
+  --chat-rail: #1E1F22;
+  --chat-side: #2B2D31;
+  --chat-main: #313338;
+  --chat-hover: #2E3035;
+  --chat-input: #383A40;
+  --chat-active: #404249;
+  color: var(--fg);
+  color-scheme: dark;
+}
+
+/* Community browse cards: a lighter slate than the chat, still dark enough for white text (6.6:1) */
+.discord-card {
+  --surface: #5A5D66;
+  --surface-2: #666A73;    /* icon tiles, hover */
+  --grey-card: #5A5D66;
+  --line: #6E727B;
+  --muted: #DCDFE3;        /* 4.9:1 on the card */
+}
+
 /* High contrast mode (Settings > Accessibility) */
-.hc { --fg: #000; --muted: #1d1d1d; --line: #000; --brand-strong: #064e47; --brand: #0b5f59; --accent-strong: #0b3d4b; }
-.dark.hc { --fg: #fff; --muted: #f0f0f0; --line: #fff; --brand-strong: #99f6e4; --accent-strong: #cffafe; }
+.hc { --muted: #000; --line: #000; --fg: #000; --brand-strong: #1F3260; --accent-strong: #1F3260; }
+.dark.hc { --muted: #fff; --line: #fff; --brand-strong: #DBE9FF; --accent-strong: #DBE9FF; }
 
 @theme inline {
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
@@ -89,6 +152,25 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-strong: var(--accent-strong);
   --color-pink: var(--pink);
+  --color-sunshine: var(--sunshine);
+  --color-mustard: var(--mustard);
+  --color-navy: var(--navy);
+  --color-sidebar: var(--sidebar);
+  --color-grey-card: var(--grey-card);
+  --color-chat-rail: var(--chat-rail);
+  --color-chat-side: var(--chat-side);
+  --color-chat-main: var(--chat-main);
+  --color-chat-hover: var(--chat-hover);
+  --color-chat-input: var(--chat-input);
+  --color-chat-active: var(--chat-active);
+  --color-sky: var(--sky);
+  --color-pastel: var(--pastel);
+  --color-brand-edge: var(--brand-edge);
+  --color-on-brand: var(--on-brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-on-danger: var(--on-danger);
+  --color-free: var(--free);
+  --color-free-tint: var(--free-tint);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -104,11 +186,7 @@ html[data-text="lg"] { font-size: 112.5%; }
 html[data-text="xl"] { font-size: 125%; }
 
 body {
-  background:
-    radial-gradient(60rem 40rem at 100% 0%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 70%),
-    radial-gradient(50rem 40rem at 0% 100%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -116,7 +194,7 @@ body {
 
 /* Visible keyboard focus everywhere */
 :focus-visible {
-  outline: 3px solid var(--brand);
+  outline: 3px solid var(--brand-strong);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -132,31 +210,19 @@ body {
 
 .skip-link {
   position: absolute; left: 1rem; top: -100px; z-index: 100;
-  background: var(--brand); color: #fff; padding: 0.6rem 1rem; border-radius: 0.75rem; font-weight: 700;
+  background: var(--brand); color: var(--on-brand); padding: 0.6rem 1rem; border-radius: 0.75rem; font-weight: 700;
 }
 .skip-link:focus { top: 1rem; }
 
-.brand-gradient { background: linear-gradient(135deg, #0b5f59 0%, #0f766e 50%, #0e7490 100%); }
+/* Logo tile and the sign-in panel: flat mustard, no gradients */
+.brand-gradient { background: var(--brand); color: var(--on-brand); }
 
-/* Teal-to-turquoise pill button (all stops keep 4.5:1 with white text) */
-.btn-primary {
-  background: linear-gradient(90deg, #0f766e, #0e7490);
-  color: #fff;
-  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--brand) 60%, transparent);
-}
-.btn-primary:hover { filter: brightness(1.08); }
+/* Primary pill button: pastel blue, navy label, hairline edge */
+.btn-primary { background: var(--brand); color: var(--on-brand); box-shadow: inset 0 0 0 1px var(--brand-edge); }
+.btn-primary:hover { background: var(--brand-hover); }
 
-/* Cards: white fading to a turquoise wash, with a turquoise-to-teal line across the top */
-.nexus-card {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(120deg, var(--surface) 55%, var(--card-tint));
-}
-.nexus-card::before {
-  content: "";
-  position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: linear-gradient(90deg, #7cc4ba, #7fbfcc, #0f766e);
-}
+/* Cards: flat surface with a hairline border */
+.nexus-card { position: relative; overflow: hidden; background: var(--surface); }
 
 /* Opened event/person details must scroll instead of inheriting card clipping. */
 .nexus-card.nexus-detail {
@@ -170,19 +236,13 @@ body {
 .leaflet-control-zoom a { color: var(--fg) !important; background: var(--surface) !important; border-color: var(--line) !important; }
 .leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--muted) !important; }
 /* Dark map: invert the light tiles, then pull out most colour so it reads as neutral slate, not green */
+/* Quiet the street map's colours so pins stand out */
+.leaflet-tile-pane { filter: saturate(0.65) brightness(1.02); }
 .dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.85) saturate(0.3); }
 
-/* ---- Dark mode only: flat surfaces instead of the light theme's glows and washes ---- */
-.dark body { background: var(--bg); }
-.dark .btn-primary { background: var(--brand); box-shadow: none; }
-.dark .btn-primary:hover { filter: none; background: var(--brand-hover); }
-.dark .nexus-card { background: var(--surface); box-shadow: var(--shadow); }
-.dark .nexus-card::before { display: none; }
-.dark .brand-gradient { background: var(--brand); }
-/* Category icons in filter chips: lift the muted colours so they read on dark */
-.dark .cat-icon { filter: brightness(1.8) saturate(0.8); }
-/* Avatar circle: soft rose instead of bright pink on dark */
-.dark .bg-pink { background-color: #3a2a30; color: #f0c2cf; }
+/* ---- Dark mode ---- */
+.dark .nexus-card { box-shadow: var(--shadow); }
+
 .leaflet-control-attribution a { color: var(--brand-strong) !important; }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

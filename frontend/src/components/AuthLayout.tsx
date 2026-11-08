@@ -7,14 +7,12 @@ import { ThemeToggle } from './ThemeToggle'
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
-      <aside className="brand-gradient relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div aria-hidden className="absolute -right-24 -top-24 size-96 rounded-full bg-white/10" />
-        <div aria-hidden className="absolute -bottom-32 -left-16 size-[28rem] rounded-full bg-[#5eead4]/30 blur-2xl" />
+      <aside className="brand-gradient relative hidden overflow-hidden p-12 lg:flex lg:flex-col lg:justify-between">
         <Logo light />
         <div className="relative">
           <h2 className="max-w-md text-4xl font-extrabold leading-tight">{APP.tagline}</h2>
         </div>
-        <p className="relative text-sm text-white/80">Made in Calgary</p>
+        <p className="relative text-sm text-navy/75">Made in Calgary</p>
       </aside>
 
       <main className="relative flex items-center justify-center p-6 sm:p-12">

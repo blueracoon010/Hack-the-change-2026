@@ -24,7 +24,7 @@ export const BADGE_ICONS: Record<string, LucideIcon> = {
 export function BadgeIcon({ badge, size = 'md' }: { badge: Pick<Badge, 'icon' | 'earned' | 'name'>; size?: 'sm' | 'md' }) {
   const Icon = BADGE_ICONS[badge.icon] ?? Sun
   return <span className={cx('relative grid shrink-0 place-items-center rounded-full', size === 'sm' ? 'size-9' : 'size-16',
-    badge.earned ? 'bg-gradient-to-br from-brand to-accent-strong text-white shadow-md shadow-brand/30' : 'bg-surface-2 text-muted ring-1 ring-line')}>
+    badge.earned ? 'bg-mustard text-navy ring-1 ring-navy/10' : 'bg-surface-2 text-muted ring-1 ring-line')}>
     <Icon className={size === 'sm' ? 'size-4' : 'size-7'} aria-hidden />
     {!badge.earned && size === 'md' && <Lock className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-surface p-1 text-muted ring-1 ring-line" aria-hidden />}
   </span>
@@ -60,9 +60,9 @@ export function Badges() {
   return <div className="space-y-6">
     {error && <Alert>{error}</Alert>}
     <Card className="overflow-hidden p-0">
-      <div className="flex flex-wrap items-center gap-5 bg-brand-tint/60 p-5 sm:p-6">
+      <div className="flex flex-wrap items-center gap-5 bg-sidebar p-5 sm:p-6">
         <div className="flex items-center gap-4">
-          <span className="grid size-16 place-items-center rounded-2xl bg-brand text-white shadow-sm"><Camera className="size-7" aria-hidden /></span>
+          <span className="grid size-16 place-items-center rounded-2xl bg-brand text-on-brand shadow-sm"><Camera className="size-7" aria-hidden /></span>
           <div>
             <p className="text-3xl font-extrabold tabular-nums">{summary.earned}<span className="text-base font-bold text-muted"> / {summary.total}</span></p>
             <p className="text-sm font-bold text-muted">badges · {summary.attended} {summary.attended === 1 ? 'event' : 'events'}</p>
@@ -99,12 +99,12 @@ export function Badges() {
       </button> : <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map(p => <li key={p.id} className="group relative overflow-hidden rounded-2xl border border-line bg-surface">
           <img src={p.photo} alt={`At ${p.title}`} className="aspect-square w-full object-cover" loading="lazy" />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 pt-8 text-white">
+          <div className="p-3">
             <p className="line-clamp-2 text-sm font-bold leading-tight">{p.title}</p>
-            <p className="text-xs opacity-80">{fmtDay(new Date(p.attendedAt))}</p>
+            <p className="mt-0.5 text-xs text-muted">{fmtDay(new Date(p.attendedAt))}</p>
           </div>
           <button type="button" onClick={() => remove(p.id)} aria-label={`Remove photo from ${p.title}`}
-            className="absolute right-2 top-2 rounded-full bg-black/55 p-1.5 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"><Trash2 size={15} /></button>
+            className="absolute right-2 top-2 rounded-full bg-navy/75 p-1.5 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"><Trash2 size={15} /></button>
         </li>)}
       </ul>}
     </section>
@@ -157,7 +157,7 @@ function AddPhoto({ onClose, onDone }: { onClose: () => void; onDone: (fresh: Ba
         className={cx('relative grid w-full place-items-center overflow-hidden rounded-2xl border-2 border-dashed transition', photo ? 'border-transparent' : 'aspect-video border-line hover:bg-surface-2')}>
         {photo ? <img src={photo} alt="Your event photo" className="max-h-72 w-full object-cover" />
           : <span className="flex flex-col items-center gap-2 text-muted"><Camera className="size-8 text-brand-strong" aria-hidden /><span className="font-bold text-fg">Take or choose a photo</span></span>}
-        {photo && <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">Change</span>}
+        {photo && <span className="absolute bottom-2 right-2 rounded-full bg-navy/75 px-3 py-1 text-xs font-bold text-white">Change</span>}
       </button>
 
       <fieldset className="mt-5">

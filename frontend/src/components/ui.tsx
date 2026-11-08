@@ -11,10 +11,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ variant = 'primary', loading, className, children, disabled, ...rest }: ButtonProps) {
   const styles = {
-    primary: 'bg-brand text-white hover:brightness-110 shadow-sm shadow-brand/30',
+    primary: 'bg-brand text-on-brand ring-1 ring-inset ring-brand-edge hover:bg-brand-hover',
     secondary: 'bg-surface text-fg border border-line hover:bg-surface-2',
     ghost: 'text-fg hover:bg-surface-2',
-    danger: 'bg-danger text-white hover:brightness-110',
+    danger: 'bg-danger text-on-danger hover:brightness-95',
   }[variant]
   return (
     <button
@@ -88,7 +88,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 export function StatCard({ label, value, unit, icon, tone = 'brand', hint }: {
   label: string; value: string; unit?: string; icon?: ReactNode; tone?: 'brand' | 'accent' | 'pink'; hint?: string
 }) {
-  const toneBg = { brand: 'bg-brand-tint text-brand-strong', accent: 'bg-accent-soft text-accent-strong', pink: 'bg-pink text-[#8a1838]' }[tone]
+  const toneBg = { brand: 'bg-brand-tint text-brand-strong', accent: 'bg-accent-soft text-accent-strong', pink: 'bg-pink text-navy' }[tone]
   return (
     <Card as="div" className="animate-in">
       <div className="flex items-center justify-between">
@@ -129,7 +129,7 @@ export function Segmented<T extends string | number>({ label, options, value, on
     <div role="group" aria-label={label} className="inline-flex rounded-xl border border-line bg-surface p-1">
       {options.map((o) => (
         <button key={String(o.value)} type="button" aria-pressed={o.value === value} onClick={() => onChange(o.value)}
-          className={cx('rounded-lg px-3 py-1.5 text-sm font-bold transition', o.value === value ? 'bg-brand text-white' : 'text-muted hover:text-fg')}>
+          className={cx('rounded-lg px-3 py-1.5 text-sm font-bold transition', o.value === value ? 'bg-brand text-on-brand' : 'text-muted hover:text-fg')}>
           {o.label}
         </button>
       ))}

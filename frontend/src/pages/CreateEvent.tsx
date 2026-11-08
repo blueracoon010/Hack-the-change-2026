@@ -142,7 +142,7 @@ export default function CreateEvent() {
                     <button key={c} type="button" aria-pressed={on} onClick={() => toggleCat(c)} disabled={!on && cats.length >= MAX_CATS}
                       className={cx('inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition disabled:opacity-40',
                         on ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:text-fg')}>
-                      <Icon className={cx('size-4', !on && 'cat-icon')} aria-hidden style={on ? undefined : { color: CATEGORIES[c].color }} />
+                      <Icon className="size-4" aria-hidden />
                       {CATEGORIES[c].label}
                     </button>
                   )
@@ -196,7 +196,7 @@ function VisibilityOption({ checked, onSelect, icon, title, text }: { checked: b
     <button type="button" role="radio" aria-checked={checked} onClick={onSelect}
       className={cx('flex items-start gap-3 rounded-2xl border-2 p-4 text-left transition',
         checked ? 'border-brand bg-brand-tint' : 'border-line hover:border-brand/40')}>
-      <span className={cx('grid size-10 shrink-0 place-items-center rounded-xl', checked ? 'bg-brand text-white' : 'bg-surface-2 text-muted')}>{icon}</span>
+      <span className={cx('grid size-10 shrink-0 place-items-center rounded-xl', checked ? 'bg-brand text-on-brand' : 'bg-surface-2 text-muted')}>{icon}</span>
       <span>
         <span className={cx('block font-extrabold', checked && 'text-brand-strong')}>{title}</span>
         <span className="mt-0.5 block text-sm text-muted">{text}</span>

@@ -75,12 +75,12 @@ function Browse({ state, joined, error, onOpen, setMembership }: {
 
       {mine.length > 0 ? (
         <section aria-labelledby="your-communities">
-          <h2 id="your-communities" className="mb-3 text-xs font-extrabold uppercase tracking-[0.18em] text-muted">Your communities</h2>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <h2 id="your-communities" className="mb-3 text-sm font-semibold text-muted">Your communities</h2>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {mine.map((g) => (
               <button key={g.id} type="button" onClick={() => onOpen(g.id)}
-                className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-left transition hover:border-brand/50 hover:shadow-sm">
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-white"><GroupIcon id={g.id} className="size-5" /></span>
+                className="discord discord-card flex items-center gap-3 rounded-2xl border border-line bg-grey-card p-4 text-left transition hover:bg-surface-2">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-surface-2 text-fg"><GroupIcon id={g.id} className="size-5" /></span>
                 <span className="min-w-0">
                   <span className="block truncate font-extrabold">{g.name}</span>
                   <span className="block text-sm text-muted">{g.channels.length} channels · {memberLabel(state[g.id]?.members)}</span>
@@ -124,16 +124,16 @@ function Browse({ state, joined, error, onOpen, setMembership }: {
             <Button variant="secondary" onClick={() => { setQuery(''); setInterest(null) }}>Clear filters</Button>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
             {visible.map((g) => {
               const isMember = joined.includes(g.id)
               return (
-                <Card key={g.id} as="article" className="flex flex-col">
+                <Card key={g.id} as="article" className="discord discord-card flex flex-col border-line! bg-grey-card! p-6! shadow-none!">
                   <div className="flex items-start gap-4">
-                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand-tint text-brand-strong"><GroupIcon id={g.id} className="size-6" /></span>
+                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-surface-2 text-fg"><GroupIcon id={g.id} className="size-6" /></span>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-wider text-muted">{g.interest}</p>
-                      <h3 className="mt-0.5 text-lg font-extrabold leading-snug">{g.name}</h3>
+                      <p className="text-sm text-muted">{g.interest}</p>
+                      <h3 className="text-lg font-extrabold leading-snug">{g.name}</h3>
                     </div>
                   </div>
                   <p className="mt-3 flex-1 leading-relaxed text-muted">{g.description}</p>
@@ -141,7 +141,7 @@ function Browse({ state, joined, error, onOpen, setMembership }: {
                     <span className="inline-flex items-center gap-1"><Users className="size-4" aria-hidden />{memberLabel(state[g.id]?.members)}</span>
                     <span>{g.vibe}</span>
                   </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-5 flex flex-wrap gap-2">
                     {isMember ? (
                       <Button onClick={() => onOpen(g.id)}><Hash className="size-4" aria-hidden /> Open channels</Button>
                     ) : (
@@ -189,9 +189,9 @@ function GroupSpace({ group, channel, state, joined, onOpen, onBrowse, setMember
         <ArrowLeft className="size-4" aria-hidden /> All communities
       </button>
 
-      <div className="flex h-[calc(100dvh-12rem)] min-h-[520px] overflow-hidden rounded-3xl border border-line bg-surface shadow-sm">
+      <div className="discord flex h-[calc(100dvh-12rem)] min-h-[520px] overflow-hidden rounded-2xl border border-line bg-chat-main">
         {/* Communities rail */}
-        <nav aria-label="Your communities" className="hidden w-[76px] shrink-0 flex-col items-center gap-2 overflow-y-auto border-r border-line bg-surface-2 py-3 sm:flex">
+        <nav aria-label="Your communities" className="hidden w-[76px] shrink-0 flex-col items-center gap-2 overflow-y-auto bg-chat-rail py-3 sm:flex">
           <RailButton label="Discover communities" onClick={onBrowse}><Compass className="size-5" aria-hidden /></RailButton>
           <span className="my-1 h-px w-8 bg-line" aria-hidden />
           {railGroups.map((g) => (
@@ -203,19 +203,19 @@ function GroupSpace({ group, channel, state, joined, onOpen, onBrowse, setMember
         </nav>
 
         {/* Channel list */}
-        <aside aria-label={`${group.name} channels`} className="hidden w-64 shrink-0 flex-col border-r border-line md:flex">
-          <div className="border-b border-line p-4">
+        <aside aria-label={`${group.name} channels`} className="hidden w-64 shrink-0 flex-col bg-chat-side md:flex">
+          <div className="border-b border-black/25 p-4">
             <h1 className="text-lg font-extrabold leading-snug">{group.name}</h1>
             <p className="mt-0.5 flex items-center gap-1 text-sm text-muted"><Users className="size-3.5" aria-hidden />{memberLabel(state[group.id]?.members)}</p>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
-            <p className="mb-1.5 px-2 text-xs font-extrabold uppercase tracking-[0.14em] text-muted">Text channels</p>
+            <p className="mb-1.5 px-2 text-sm font-semibold text-muted">Text channels</p>
             <ul className="space-y-0.5">
               {group.channels.map((c) => (
                 <li key={c}>
                   <button type="button" onClick={() => onOpen(group.id, c)} aria-current={c === channel ? 'page' : undefined}
                     className={cx('flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left font-bold transition',
-                      c === channel ? 'bg-brand-tint text-brand-strong' : 'text-muted hover:bg-surface-2 hover:text-fg')}>
+                      c === channel ? 'bg-chat-active text-fg' : 'text-muted hover:bg-chat-active/50 hover:text-fg')}>
                     <Hash className="size-4 shrink-0" aria-hidden /><span className="truncate">{c}</span>
                   </button>
                 </li>
@@ -223,7 +223,7 @@ function GroupSpace({ group, channel, state, joined, onOpen, onBrowse, setMember
             </ul>
             <p className="mt-5 px-2 text-xs leading-relaxed text-muted">Be kind, respect boundaries, and keep personal contact details private.</p>
           </div>
-          <div className="border-t border-line p-3">
+          <div className="border-t border-black/25 p-3">
             {isMember
               ? <Button variant="ghost" className="w-full justify-center text-sm" loading={membershipBusy} onClick={toggleMembership}><LogOut className="size-4" aria-hidden /> Leave community</Button>
               : <Button className="w-full justify-center" loading={membershipBusy} onClick={toggleMembership}><Plus className="size-4" aria-hidden /> Join community</Button>}
@@ -240,10 +240,10 @@ function GroupSpace({ group, channel, state, joined, onOpen, onBrowse, setMember
 function RailButton({ label, active, muted, onClick, children }: { label: string; active?: boolean; muted?: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button type="button" onClick={onClick} title={label} aria-label={label} aria-current={active ? 'page' : undefined}
-      className={cx('relative grid size-12 place-items-center rounded-2xl transition',
-        active ? 'bg-brand text-white' : 'bg-surface text-muted hover:rounded-xl hover:bg-brand-tint hover:text-brand-strong',
+      className={cx('relative grid size-12 place-items-center transition-all',
+        active ? 'rounded-xl bg-brand text-on-brand' : 'rounded-full bg-chat-main text-muted hover:rounded-xl hover:bg-brand hover:text-on-brand',
         muted && !active && 'opacity-60')}>
-      {active && <span className="absolute -left-3 h-8 w-1 rounded-r-full bg-brand" aria-hidden />}
+      {active && <span className="absolute -left-3 h-8 w-1 rounded-r-full bg-fg" aria-hidden />}
       {children}
     </button>
   )
@@ -303,7 +303,7 @@ function Channel({ group, channel, isMember, onOpen, onToggleMembership, members
   return (
     <section aria-label={`#${channel}`} className="flex min-w-0 flex-1 flex-col">
       {/* Channel header */}
-      <header className="border-b border-line px-4 py-3">
+      <header className="border-b border-black/25 px-4 py-3">
         {/* Small screens: community name + leave, since the sidebar is hidden */}
         <div className="mb-2 flex items-center justify-between gap-2 md:hidden">
           <p className="truncate font-extrabold">{group.name}</p>
@@ -329,17 +329,17 @@ function Channel({ group, channel, isMember, onOpen, onToggleMembership, members
       {/* Messages */}
       <div ref={scroller} className="flex-1 overflow-y-auto px-4 py-4" aria-live="polite" aria-busy={loading}>
         <div className="mb-5 border-b border-line pb-5">
-          <span className="grid size-14 place-items-center rounded-full bg-brand-tint text-brand-strong"><Hash className="size-7" aria-hidden /></span>
+          <span className="grid size-14 place-items-center rounded-full bg-chat-input text-fg"><Hash className="size-7" aria-hidden /></span>
           <p className="mt-3 text-2xl font-extrabold">Welcome to #{channel}</p>
           <p className="mt-1 text-muted">{topicFor(group, channel)}</p>
         </div>
         {loading ? <p className="text-sm text-muted">Loading messages…</p>
           : messages.length === 0 && !error ? <p className="text-sm text-muted">No messages yet. {isMember ? 'Be the first to say hello!' : 'Join to start the conversation.'}</p>
           : (
-            <ul className="space-y-1">
+            <ul className="-mx-4">
               {messages.map((m) => (
-                <li key={m.id} className="group flex gap-3 rounded-xl px-2 py-2 hover:bg-surface-2">
-                  <span className={cx('grid size-10 shrink-0 place-items-center rounded-full text-sm font-extrabold', m.mine ? 'bg-brand text-white' : 'bg-accent-soft text-accent-strong')} aria-hidden>
+                <li key={m.id} className="group flex gap-3 px-4 py-2 hover:bg-chat-hover">
+                  <span className={cx('grid size-10 shrink-0 place-items-center rounded-full text-sm font-extrabold', m.mine ? 'bg-brand text-on-brand' : 'bg-pink text-navy')} aria-hidden>
                     {initials(m.name)}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -352,7 +352,7 @@ function Channel({ group, channel, isMember, onOpen, onToggleMembership, members
                   </div>
                   {m.mine && (
                     <button type="button" onClick={() => remove(m.id)} aria-label="Delete your message" title="Delete"
-                      className="grid size-8 shrink-0 place-items-center self-start rounded-lg text-muted opacity-0 transition hover:bg-surface hover:text-danger focus:opacity-100 group-hover:opacity-100">
+                      className="grid size-8 shrink-0 place-items-center self-start rounded-lg text-muted opacity-0 transition hover:bg-chat-input hover:text-danger focus:opacity-100 group-hover:opacity-100">
                       <Trash2 className="size-4" aria-hidden />
                     </button>
                   )}
@@ -364,11 +364,11 @@ function Channel({ group, channel, isMember, onOpen, onToggleMembership, members
       </div>
 
       {/* Composer, or a join prompt when previewing */}
-      <div className="border-t border-line p-3">
+      <div className="px-4 pb-3 pt-1">
         {isMember ? (
           <form onSubmit={send}>
             <label htmlFor="channel-message" className="sr-only">Message #{channel}</label>
-            <div className="flex items-end gap-2 rounded-2xl border border-line bg-surface-2 p-2 focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
+            <div className="flex items-end gap-2 rounded-xl bg-chat-input p-1.5 focus-within:ring-2 focus-within:ring-brand-edge">
               <textarea id="channel-message" rows={1} value={text} maxLength={1000} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown}
                 placeholder={`Message #${channel}`}
                 className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 outline-none placeholder:text-muted/80" />
@@ -382,8 +382,8 @@ function Channel({ group, channel, isMember, onOpen, onToggleMembership, members
             </p>
           </form>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-brand-tint px-4 py-3">
-            <p className="text-sm font-bold text-brand-strong">You’re taking a look. Join {group.name} to post in its channels.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-chat-input px-4 py-3">
+            <p className="text-sm font-bold">You’re taking a look. Join {group.name} to post in its channels.</p>
             <Button loading={membershipBusy} onClick={onToggleMembership}><Plus className="size-4" aria-hidden /> Join community</Button>
           </div>
         )}

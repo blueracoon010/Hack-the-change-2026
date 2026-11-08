@@ -89,9 +89,9 @@ export default function Profile() {
   }
   return <div className="mx-auto max-w-5xl space-y-6">
     <header className="overflow-hidden rounded-3xl border border-line bg-surface shadow-sm">
-      <div className="relative h-24 overflow-hidden bg-brand-tint sm:h-32" aria-hidden="true"><div className="absolute -right-6 -top-20 size-64 rounded-full border-[32px] border-brand/10" /><div className="absolute right-48 top-8 size-32 rounded-full bg-accent/10" /></div>
+      <div className="h-24 bg-brand-tint sm:h-32" aria-hidden="true" />
       <div className="relative px-5 pb-6 sm:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-4"><div className="-mt-10 grid size-24 place-items-center rounded-3xl border-4 border-surface bg-brand text-4xl font-extrabold text-white shadow-sm" aria-hidden="true">{profile.name[0]?.toUpperCase()}</div><Button variant="secondary" onClick={edit}><Pencil size={16} /> Edit profile</Button></div>
+        <div className="flex flex-wrap items-end justify-between gap-4"><div className="-mt-10 grid size-24 place-items-center rounded-3xl border-4 border-surface bg-brand text-4xl font-extrabold text-on-brand shadow-sm" aria-hidden="true">{profile.name[0]?.toUpperCase()}</div><Button variant="secondary" onClick={edit}><Pencil size={16} /> Edit profile</Button></div>
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-3xl font-extrabold tracking-tight">{profile.name}</h1><p className="mt-2 flex items-center gap-1.5 text-sm text-muted"><MapPin size={15} />{profile.neighbourhood || 'Calgary, AB'}</p></div><span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-2 text-sm font-bold text-accent-strong"><Coffee size={16} />{profile.social}</span></div>
         {profile.bio && <p className="mt-4 max-w-2xl whitespace-pre-wrap break-words leading-relaxed text-muted">{profile.bio}</p>}
         {user && <dl className="mt-5 grid max-w-md grid-cols-3 divide-x divide-line rounded-2xl border border-line">
