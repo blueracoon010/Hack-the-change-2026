@@ -1,37 +1,95 @@
+
 # Nexus
 
 **Never miss out. Never go alone.**
 
-Nexus is a community-events app for Calgary, built for Code the Change YYC 2026.
+Nexus is a community-events app designed to help young people, newcomers, and individuals experiencing social isolation build meaningful connections in Calgary.
+
+Whether you're new to the city, settling into a different neighbourhood, or simply looking to expand your social circle, Nexus helps you discover what's happening around you, find people to attend events with, and turn shared experiences into lasting friendships.
+
+## Who it's for
+
+Moving somewhere new or trying to find your place in an existing community can be isolating. Young people, newcomers, and individuals without an established local support network often face barriers to discovering community activities, meeting like-minded people, and feeling comfortable participating in social events.
+
+Nexus is designed to make that first step easier. It helps people discover nearby activities, connect with others who share their interests, and find companions to attend events with. By creating opportunities for low-pressure social interactions, Nexus aims to make community participation more accessible and help turn first encounters into meaningful relationships.
+
+## Focus areas
+
+Nexus addresses the **Community Connection & Inclusion** challenge.
+
+| Focus area | How Nexus does it |
+|---|---|
+| **Reduce loneliness among vulnerable populations** (young people, newcomers, and individuals experiencing social isolation) | "Wants company" buddy requests so nobody has to attend events alone, introvert-friendly event descriptions, friends' schedules side by side to coordinate meetups, direct messaging, and a private journal for personal reflection. |
+| **Encourage neighbourhood engagement** (volunteering, skill-sharing, and community building) | An interactive map of local events (clean-ups, workshops, recreation-centre activities, and meetups), the ability for anyone to host their own events, interest-based communities with chat channels, and badges that encourage participation and community involvement. |
 
 ## The problem
 
-- **Events get missed.** A lot of what's happening in a neighbourhood only lives on paper flyers, on café corkboards and library walls. If you don't walk past at the right time, you never hear about it.
-- **Going alone is a barrier.** Even when people find something they'd enjoy, showing up by yourself is hard, so many people stay home.
+- **Events get missed.** Many neighbourhood activities are advertised through physical flyers, community boards, libraries, and local businesses. People who aren't already connected to these spaces can easily miss opportunities to participate.
+- **Going alone is a barrier.** Even when people discover activities that interest them, attending unfamiliar events without someone they know can feel intimidating. This can discourage participation and reinforce social isolation.
+- **Finding your community takes time.** Meeting people with shared interests and building meaningful relationships can be challenging, especially when starting from scratch in a new environment.
+
+## The solution
+
+Nexus addresses these barriers by bringing local events and social connections together in one platform. Users can discover activities around them, find companions through buddy requests, connect with interest-based communities, and create their own events.
+
+**Nexus doesn't just help people find events. It helps them find their people.**
+
 
 ## What Nexus does
 
+### Find what's on
+
 | | |
 |---|---|
-| **Map of what's on** | The home screen is a map of Calgary events: live listings from Ticketmaster and the City of Calgary, plus events people create in Nexus. Filter by type (tech, social, outdoorsy, arts, food…), introvert or extrovert vibe, date and distance. |
-| **My people** | Switch the map to see the people you follow and which events they're going to. |
-| **Create events** | Host your own event with From and To dates and a place on the map. Make it **public** (everyone) or **friends only** (people you follow who follow you back). Manage them in *Profile → My events*. |
-| **Go together** | RSVP and say you're looking for a buddy, so nobody has to go alone. |
+| **Map of what's on** | The Explore screen is a map of Calgary events: live listings from Ticketmaster, Meetup and the City of Calgary, plus events people create in Nexus, with event photos on cards and in details. |
+| **Filters** | Filter by type (tech, social, outdoorsy, arts, food…), ntrovert / extrovert / mixed vibe, date or a specific day, distance from you or any spot you tap on the map, and keyword search. Show only friends' events, or only events where someone wants company. |
+| **Weather-aware** | Event details show the Calgary forecast for that day, with a tip when an outdoor event looks cold, snowy or wet. |
+| **Saved events** | Bookmark events to your profile and jump back to them on the map. |
+
+### Never go alone
+
+| | |
+|---|---|
+| **Wants company** | RSVP and say you're looking for a buddy. Friends' buddy requests show on the map, and one tap says "I'll go with you". |
+| **Buddy preferences** | Choose whether you're open to going with someone for any event or only selected ones, and who can ask: everyone, mutual friends, or people you choose. |
+| **Plan with friends** | See your week beside your friends' weeks, spot shared free windows, and get events that fit. Make a plan at a suggested event or copy an invite. |
+| **Your schedule** | Block time by hand (busy, work, class, me time, open to plans, weekly repeat) or link Google Calendar through its iCal address or an `.ics` import. Friends only ever see that you're busy, never what. |
+
+### Build community
+
+| | |
+|---|---|
+| **Create events** | Host your own event with From and To dates and a place on the map, such as a walk, a skill-share or a volunteer day. Make it **public** (everyone) or **friends only** (people you follow who follow you back). |
+| **Communities** | Join interest groups (walking, books, art, coffee and more) and chat in channels with welcome notes for new members. Create your own public or friends-only community, and add friends straight from the chat. |
+| **Direct messages** | Private one-to-one chats with friends. |
+| **Follow** | Follow people. Private profiles get follow requests that you accept or decline. |
+| **Profiles & invites** | Profile photo, interests, social links, memories from events you went to, and an invite code or link to bring a friend in. View other members' profiles. |
+| **Badges** | Add a photo from an event you attended and earn milestone and connection badges. |
+
+### Look after yourself
+
+| | |
+|---|---|
+| **Journal** | Private notes with a mood (great, grateful, tired, anxious…) that save as you type. Only you can see them. |
+| **Affirmations** | Flashcards of positive affirmations on happiness and belonging. |
+
+### Stay on track
+
+| | |
+|---|---|
 | **Calendar** | Your RSVPs in a calendar, with "Add to Google Calendar" and iCalendar export. |
-| **Weather-aware** | Event details show the Calgary forecast for that day. |
-| **Communities** | Join interest groups (walking, books, art, coffee) and chat in their channels. |
-| **Profiles & invites** | Public or private profile, interests, invite friends with a code or link. |
-| **Accessible** | Light and dark mode, text size, high contrast, reduced motion, keyboard navigation and screen-reader labels. |
+| **Reminders** | An email the day before an event you're going to. |
+| **Privacy controls** | Public or private profile, a switch for sharing free/busy with friends, and account deletion in *Settings*. |
+| **Accounts** | Sign up, log in, and reset a forgotten password by email. |
 
 ## How it's built
 
 | Folder | What it is |
 |---|---|
 | [`frontend/`](frontend/README.md) | React 19 + TypeScript + Vite + Tailwind. Runs in the browser or as an Electron desktop app. Maps use OpenStreetMap (Leaflet), or Google Maps if you add a key. |
-| [`backend/`](backend/README.md) | FastAPI + SQLModel API: accounts, events, RSVPs, follows, communities. Uses SQLite by default or a shared Postgres database. |
-| [`backend/app/events/`](backend/app/events/README.md) | Event sync from Ticketmaster and City of Calgary open data, geocoding, and the events API. |
-| [`cloud/`](cloud/README.md) | Docker and AWS deployment, plus the shared team database. |
-| [`ml/`](ml/README.md) | Model training left over from the starter template. |
+| [`backend/`](backend/README.md) | FastAPI + SQLModel API: accounts, events, RSVPs, buddy matching, follows, communities, direct messages, schedules, badges and the journal. Uses SQLite by default or a shared Postgres database. `scripts/seed_demo.py` fills it with demo friends, a buddy request, a DM and a busy week. |
+| [`backend/app/events/`](backend/app/events/README.md) | Event sync from Ticketmaster, Meetup and City of Calgary open data, geocoding, reminders and the events API. |
+| [`cloud/`](cloud/README.md) | Docker and AWS deployment (Canadian region), plus the shared team database. |
 
 ---
 
@@ -76,8 +134,6 @@ cp frontend/.env.example frontend/.env
 Copy-Item backend\.env.example backend\.env
 Copy-Item frontend\.env.example frontend\.env
 ```
-
-**API keys, all optional:** a Ticketmaster key (`TICKETMASTER_API_KEY`), a Meetup token (`MEETUP_ACCESS_TOKEN`) and a Calgary Open Data app token (`CALGARY_APP_TOKEN`) for more events; a Gmail address and app password (`SMTP_USER`, `SMTP_PASSWORD`) for reset and reminder emails; and a Google Maps key (`VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`), without which the map falls back to free OpenStreetMap.
 
 Set in `backend/.env`:
 
