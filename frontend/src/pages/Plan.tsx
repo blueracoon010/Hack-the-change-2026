@@ -19,7 +19,7 @@ const HOURS = Array.from({ length: DAY_END_H - DAY_START_H }, (_, i) => DAY_STAR
 const GRID_H = HOURS.length * HOUR_PX
 const clip = (min: number) => Math.min(Math.max(min, DAY_START_H * 60), DAY_END_H * 60)
 const topOf = (min: number) => ((clip(min) - DAY_START_H * 60) / 60) * HOUR_PX
-const hourLabel = (h: number) => `${((h + 11) % 12) + 1}${h < 12 ? 'a' : 'p'}`
+const hourLabel = (h: number) => `${((h + 11) % 12) + 1} ${h < 12 || h === 24 ? 'a.m.' : 'p.m.'}`
 const initials = (name: string) => name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
 type Draft = { day: string; from: string; to: string; kind: Kind; label: string; repeat: boolean }
@@ -150,15 +150,15 @@ export default function Plan() {
           </div>
           <div className="overflow-x-auto">
             <div className="min-w-[640px] px-2 pb-3">
-              <div className="grid grid-cols-[2.5rem_repeat(7,1fr)]">
+              <div className="grid grid-cols-[3.25rem_repeat(7,1fr)]">
                 <div />
                 {(week?.days ?? Array.from({ length: 7 }, (_, i) => addDays(start, i))).map(d => (
                   <div key={d} className={cx('py-2 text-center text-xs font-bold', d === today ? 'text-brand-strong' : 'text-muted')}>{dayLabel(d)}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-[2.5rem_repeat(7,1fr)]" style={{ height: GRID_H }}>
+              <div className="grid grid-cols-[3.25rem_repeat(7,1fr)]" style={{ height: GRID_H }}>
                 <div className="relative">
-                  {HOURS.map(h => <span key={h} className="absolute right-1 -translate-y-1/2 text-[10px] font-semibold text-muted" style={{ top: (h - DAY_START_H) * HOUR_PX }}>{h > DAY_START_H && hourLabel(h)}</span>)}
+                  {HOURS.map(h => <span key={h} className="absolute right-1.5 -translate-y-1/2 whitespace-nowrap text-[10px] font-semibold text-muted" style={{ top: (h - DAY_START_H) * HOUR_PX }}>{h > DAY_START_H && hourLabel(h)}</span>)}
                 </div>
                 {(week?.days ?? []).map(day => (
                   <div key={day} className="relative cursor-copy border-l border-line" onClick={e => clickColumn(day, e)}
