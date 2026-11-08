@@ -7,6 +7,8 @@ from .config import settings
 from .db import init_db
 from .events.router import router as events_router
 from .events.sync import start_background_sync
+from .schedule.router import router as schedule_router
+from .badges.router import router as badges_router
 from .routers import auth, calgary, community, energy, ml, users, social, buddies
 
 
@@ -29,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, buddies.router, community.router, events_router):
+for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, buddies.router, community.router, events_router, schedule_router, badges_router):
     app.include_router(r)
 
 

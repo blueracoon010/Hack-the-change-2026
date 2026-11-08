@@ -1,3 +1,4 @@
+import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Sun, type LucideIcon } from 'lucide-react'
 // 7-day Calgary forecast from Open-Meteo (free, no API key). Used for weather-aware event cards and reminders.
 import { useEffect, useState } from 'react'
 
@@ -34,18 +35,18 @@ export function forecastFor(days: DayForecast[] | null, when: Date) {
   return days?.find((d) => d.date === localISO(when)) ?? null
 }
 
-/** WMO weather code → short label + emoji. */
-export function describe(code: number) {
-  if (code === 0) return { label: 'Clear', emoji: '☀️' }
-  if (code <= 2) return { label: 'Partly cloudy', emoji: '⛅' }
-  if (code === 3) return { label: 'Cloudy', emoji: '☁️' }
-  if (code <= 48) return { label: 'Fog', emoji: '🌫️' }
-  if (code <= 57) return { label: 'Drizzle', emoji: '🌦️' }
-  if (code <= 67) return { label: 'Rain', emoji: '🌧️' }
-  if (code <= 77) return { label: 'Snow', emoji: '🌨️' }
-  if (code <= 82) return { label: 'Showers', emoji: '🌧️' }
-  if (code <= 86) return { label: 'Snow showers', emoji: '🌨️' }
-  return { label: 'Thunderstorm', emoji: '⛈️' }
+/** WMO weather code → short label + icon. */
+export function describe(code: number): { label: string; icon: LucideIcon } {
+  if (code === 0) return { label: 'Clear', icon: Sun }
+  if (code <= 2) return { label: 'Partly cloudy', icon: CloudSun }
+  if (code === 3) return { label: 'Cloudy', icon: Cloud }
+  if (code <= 48) return { label: 'Fog', icon: CloudFog }
+  if (code <= 57) return { label: 'Drizzle', icon: CloudDrizzle }
+  if (code <= 67) return { label: 'Rain', icon: CloudRain }
+  if (code <= 77) return { label: 'Snow', icon: CloudSnow }
+  if (code <= 82) return { label: 'Showers', icon: CloudRain }
+  if (code <= 86) return { label: 'Snow showers', icon: CloudSnow }
+  return { label: 'Thunderstorm', icon: CloudLightning }
 }
 
 /** A plain-language tip for outdoor events, or null when the weather is fine. */

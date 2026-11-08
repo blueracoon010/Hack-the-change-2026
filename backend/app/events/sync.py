@@ -75,13 +75,16 @@ async def sync_source(session: Session, source) -> SyncRun:
 
 
 def prune_past(session: Session) -> None:
-    """Delete synced events that ended more than a day ago (community events are kept)."""
-    cutoff = utcnow() - timedelta(days=1)
+    """Delete synced events that started more than a week ago (community events are kept).
+    A week, not a day, so people who went still have time to add their event photo (badges)."""
+    cutoff = utcnow() - timedelta(days=7)
     stale = session.exec(select(Event.id).where(Event.source != "community", Event.start < cutoff)).all()
     if stale:
         from .models import EventRsvp, EventSave
         session.exec(delete(EventRsvp).where(EventRsvp.event_id.in_(stale)))
         session.exec(delete(EventSave).where(EventSave.event_id.in_(stale)))
+        from ..badges.router import detach_checkins
+        detach_checkins(session, stale)
         session.exec(delete(Event).where(Event.id.in_(stale)))
         session.commit()
 

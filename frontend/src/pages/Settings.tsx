@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Download, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CalendarClock, Download, Globe, Trash2 } from 'lucide-react'
 import { Alert, Button, Card, Field, PageHeader, Segmented, Switch } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { usePrefs } from '../context/PreferencesContext'
 import { api } from '../lib/api'
 import type { User } from '../lib/types'
+import type { SocialDetails } from '../components/SocialLinks'
+import type { ScheduleSettings } from '../lib/schedule'
 
 export default function Settings() {
   const { user, setUser, logout } = useAuth()
@@ -14,6 +16,25 @@ export default function Settings() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [social, setSocial] = useState<SocialDetails | null>(null)
+  const [schedule, setSchedule] = useState<ScheduleSettings | null>(null)
+  useEffect(() => {
+    if (!user) return
+    api<SocialDetails>('/api/social/profile').then(setSocial).catch(() => {})
+    api<ScheduleSettings>('/api/schedule/settings').then(setSchedule).catch(() => {})
+  }, [user?.id])
+
+  async function setPublic(discoverable: boolean) {
+    setError(null)
+    try {
+      setSocial(await api<SocialDetails>('/api/social/profile', { method: 'PUT', body: { discoverable } }))
+      window.dispatchEvent(new Event('corkboard-profile-updated'))
+    } catch (e) { setError((e as Error).message) }
+  }
+  async function setSharing(share_with_friends: boolean) {
+    setError(null)
+    try { setSchedule(await api<ScheduleSettings>('/api/schedule/settings', { method: 'PUT', body: { share_with_friends } })) } catch (e) { setError((e as Error).message) }
+  }
 
   async function saveProfile() {
     setSaving(true); setError(null); setMessage(null)
@@ -53,6 +74,20 @@ export default function Settings() {
         <Button className="mt-4" onClick={saveProfile} loading={saving} disabled={!user || !name.trim() || name === user?.name}>Save changes</Button>
       </Card>
 
+      {user && <Card aria-labelledby="visibility-h">
+        <h2 id="visibility-h" className="mb-1 text-lg font-extrabold">Privacy</h2>
+        <div className="divide-y divide-line">
+          <div className="flex items-center gap-3">
+            <Globe className="size-5 shrink-0 text-brand-strong" aria-hidden />
+            <div className="flex-1"><Switch label="Public profile" description="Members can see your bio, interests and events." checked={!!social?.discoverable} onChange={setPublic} /></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <CalendarClock className="size-5 shrink-0 text-brand-strong" aria-hidden />
+            <div className="flex-1"><Switch label="Share free/busy with friends" description="Friends see when you're busy, never what." checked={schedule?.share_with_friends ?? true} onChange={setSharing} /></div>
+          </div>
+        </div>
+      </Card>}
+
       <Card aria-labelledby="a11y-h">
         <h2 id="a11y-h" className="mb-2 text-lg font-extrabold">Display & accessibility</h2>
         <p className="mb-2 text-sm text-muted">Saved on this device only.</p>
@@ -73,8 +108,8 @@ export default function Settings() {
       </Card>
 
       <Card aria-labelledby="privacy-h">
-        <h2 id="privacy-h" className="mb-2 text-lg font-extrabold">Privacy & your data</h2>
-        <p className="text-muted">Your account stores your name, email, bcrypt-hashed password, sign-up date, follow relationships, optional social discovery details, posted events, and RSVPs. Prototype profile details and community messages remain in this browser. Export or delete your account data below.</p>
+        <h2 id="privacy-h" className="mb-2 text-lg font-extrabold">Your data</h2>
+        <p className="text-sm text-muted">Download or delete everything Nexus stores about you.</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Button variant="secondary" onClick={exportData} disabled={!user}><Download className="size-4" aria-hidden /> Export my data</Button>
           {!confirmDelete ? (

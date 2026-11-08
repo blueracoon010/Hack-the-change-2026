@@ -1,9 +1,9 @@
-// Main page: the neighbourhood map. Toggle between events around you and the people you follow / connect with,
-// filter events by type and social energy, and open any pin or card for details, RSVP and "find a buddy".
+// Main page: the neighbourhood map of events around you. Filter by type and social energy, and open any pin or
+// card for details, RSVP, "find a buddy", and which of your friends are going.
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
-  ArrowLeft, Bell, BellRing, Bookmark, CalendarDays, Check, Clock, ExternalLink, Footprints, Globe, HandHeart, LocateFixed,
-  Lock, MapPin, Search, Sparkles, Ticket, UserPlus, Users, X,
+  ArrowLeft, Bell, BellRing, Bookmark, Check, Clock, ExternalLink, Footprints, Globe, LocateFixed,
+  Lock, MapPin, Search, Sparkles, Ticket, UserPlus, X,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
@@ -14,10 +14,9 @@ import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeath
 import { api } from '../lib/api'
 import {
   calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtSpan, fmtWhen, fromApi, initials, SOURCE_LABEL, VIBES,
-  type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Relation, type Vibe,
+  type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Vibe,
 } from '../lib/nexus'
 
-type Mode = 'events' | 'people'
 type When = 'today' | 'week' | 'all'
 type Sort = 'near' | 'soon'
 type SetToggle = Dispatch<SetStateAction<Set<string>>>
@@ -30,7 +29,6 @@ const neighbourhoodOf = (host: string) => host.replace(/\s+(Creekside\s+)?(Commu
 const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : e.venue || neighbourhoodOf(e.host))
 
 export default function Explore() {
-  const [mode, setMode] = useState<Mode>('events')
   const [query, setQuery] = useState('')
   const [cats, setCats] = useState<Set<Category>>(new Set())
   const [vibe, setVibe] = useState<Vibe | 'all'>('all')
@@ -38,8 +36,6 @@ export default function Explore() {
   const [sort, setSort] = useState<Sort>('near')
   const [radiusKm, setRadiusKm] = useState<number | null>(null)
   const [locationError, setLocationError] = useState('')
-  const [relation, setRelation] = useState<Relation | 'all'>('all')
-  const [buddyOnly, setBuddyOnly] = useState(false)
   const [selected, setSelected] = useState<Selection>(null)
   const [focus, setFocus] = useState<LatLng | null>(null)
   const [userPos, setUserPos] = useState<LatLng | null>(null)
@@ -58,8 +54,6 @@ export default function Explore() {
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [buddyAsks, setBuddyAsks] = useState<Set<string>>(new Set())
   const [reminders, setReminders] = useState<Set<string>>(new Set())
-  const toggle = (set: SetToggle, id: string) =>
-    set((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   // Bookmarks + "remind me" live in the database so they survive reloads and follow you to other devices.
   const { data: savedState } = useApi<{ saved: string[]; reminders: string[] }>('/api/events/saved')
@@ -77,7 +71,7 @@ export default function Explore() {
   const toggleSaved = (id: string) => setSaveFlags(id, { saved: !saved.has(id), reminder: reminders.has(id) })
   const toggleReminder = (id: string) => setSaveFlags(id, { saved: saved.has(id), reminder: !reminders.has(id) })
 
-  // My people: people you follow who share a neighbourhood (GET /api/social/map-people).
+  // People you follow, so an event can show which friends are going (GET /api/social/map-people).
   const { data: peopleData } = useApi<{ people: Person[]; hidden: number }>('/api/social/map-people', { refreshMs: 5 * 60_000 })
   const allPeople = useMemo(() => peopleData?.people ?? [], [peopleData])
   const setHas = (set: SetToggle, id: string, on: boolean) =>
@@ -131,30 +125,9 @@ export default function Explore() {
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
   }, [allEvents, cats, vibe, when, q, origin, sort, radiusKm])
 
-  const people = useMemo(() => allPeople
-    .filter((p) => relation === 'all' || p.relation === relation)
-    .filter((p) => !buddyOnly || p.openToBuddy)
-    .filter((p) => !q || [p.name, p.neighbourhood].some((s) => s.toLowerCase().includes(q)))
-    .map((p) => ({ ...p, km: distanceKm(origin, p.position) }))
-    .sort((a, b) => a.km - b.km), [allPeople, relation, buddyOnly, q, origin])
-
   const selectedEvent = selected?.kind === 'event' ? allEvents.find((e) => e.id === selected.id) ?? null : null
-  const selectedPerson = selected?.kind === 'person' ? allPeople.find((p) => p.id === selected.id) ?? null : null
-
-  // People mode: show the events your people are going to; highlight the selected person's.
-  const peopleEvents = useMemo(() => {
-    const ids = new Set(people.flatMap((p) => p.goingTo))
-    return allEvents.filter((e) => ids.has(e.id))
-  }, [allEvents, people])
-  const highlight = useMemo(() => {
-    if (mode !== 'people') return undefined
-    if (selectedPerson) return new Set(selectedPerson.goingTo)
-    if (selectedEvent) return new Set([selectedEvent.id])
-    return undefined
-  }, [mode, selectedPerson, selectedEvent])
 
   const select = (s: Selection, pos?: LatLng) => { setSelected(s); if (pos) setFocus({ ...pos }) }
-  const switchMode = (m: Mode) => { setMode(m); setSelected(null) }
 
   // On narrow screens the details sit under the map: bring them into view.
   useEffect(() => {
@@ -180,39 +153,31 @@ export default function Explore() {
     if (!focusEventId) return
     const ev = allEvents.find((e) => e.id === focusEventId)
     if (!ev) return
-    setMode('events'); setQuery(''); setCats(new Set()); setVibe('all'); setWhen('all'); setRadiusKm(null)
+    setQuery(''); setCats(new Set()); setVibe('all'); setWhen('all'); setRadiusKm(null)
     select({ kind: 'event', id: ev.id }, ev.position)
     navigate('.', { replace: true, state: null })
   }, [focusEventId, allEvents]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
   const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week'); setRadiusKm(null) }
-  const count = mode === 'events' ? events.length : people.length
+  const count = events.length
 
   return (
     <div className="h-full overflow-y-auto lg:overflow-hidden">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 md:p-6 lg:h-full">
-        {/* Heading + mode toggle */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Calgary · your neighbourhood</p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{mode === 'events' ? 'What’s on around you' : 'Your people'}</h1>
-          </div>
-          <div role="tablist" aria-label="What to show on the map" className="inline-flex rounded-full border border-line bg-surface p-1 shadow-sm">
-            <ModeTab active={mode === 'events'} onClick={() => switchMode('events')} icon={<CalendarDays className="size-4.5" aria-hidden />}
-              label="Events near you" count={events.length} />
-            <ModeTab active={mode === 'people'} onClick={() => switchMode('people')} icon={<Users className="size-4.5" aria-hidden />}
-              label="My people" count={people.length} />
-          </div>
+        {/* Heading */}
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Calgary · your neighbourhood</p>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight">What’s on around you</h1>
         </div>
 
         {/* Search + actions */}
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative min-w-56 flex-1">
-            <span className="sr-only">{mode === 'events' ? 'Search events' : 'Search people'}</span>
+            <span className="sr-only">Search events</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-muted" aria-hidden />
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder={mode === 'events' ? 'Search events, hosts, venues…' : 'Search people or neighbourhoods…'}
+              placeholder="Search events, hosts, venues…"
               className="w-full rounded-full border border-line bg-surface py-2.5 pl-11 pr-4 shadow-sm outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/15" />
           </label>
           <button type="button" onClick={locate} disabled={locating} aria-label="Centre the map on my location"
@@ -221,7 +186,7 @@ export default function Explore() {
           </button>
         </div>
 
-        {mode === 'events' && <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <label className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-bold">
             <MapPin className="size-4 text-brand-strong" aria-hidden /> Distance
             <select value={radiusKm ?? 'all'} onChange={e => { setRadiusKm(e.target.value === 'all' ? null : Number(e.target.value)); setSelected(null) }} className="min-h-8 rounded-lg bg-surface px-2 text-fg">
@@ -230,11 +195,10 @@ export default function Explore() {
             </select>
           </label>
           {locationError && <p role="status" className="w-full text-sm text-danger">{locationError}</p>}
-        </div>}
+        </div>
         {/* Filters */}
         <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
-          {mode === 'events' ? (
-            <>
+          <>
               <div role="group" aria-label="Event type" className="flex shrink-0 gap-2">
                 {ALL_CATS.map((c) => {
                   const meta = CATEGORIES[c]
@@ -273,25 +237,7 @@ export default function Explore() {
                   <X className="size-4" aria-hidden /> Clear
                 </button>
               )}
-            </>
-          ) : (
-            <>
-              <div className="shrink-0">
-                <Segmented label="Relationship" value={relation} onChange={setRelation} options={[
-                  { value: 'all', label: 'Everyone' },
-                  { value: 'connection', label: 'Connections' },
-                  { value: 'following', label: 'Following' },
-                ]} />
-              </div>
-              <Divider />
-              <button type="button" aria-pressed={buddyOnly} onClick={() => setBuddyOnly((b) => !b)}
-                className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition',
-                  buddyOnly ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:text-fg')}>
-                <HandHeart className="size-4" aria-hidden /> Open to go together
-              </button>
-              <p className="ml-2 shrink-0 text-xs text-muted">Demo people · sample neighbourhood locations.</p>
-            </>
-          )}
+          </>
         </div>
 
         {rsvpError && <p role="alert" className="text-sm text-danger">{rsvpError}</p>}
@@ -304,19 +250,18 @@ export default function Explore() {
                 <h2 id="map-title" className="text-2xl font-extrabold tracking-tight">Map view</h2>
               </div>
               <p className="text-sm font-semibold text-muted">
-                {mode === 'events' ? 'Numbers show attendees looking for a buddy' : 'Green dot: demo buddy availability'}
+                Numbers show attendees looking for a buddy
               </p>
             </div>
             <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-line">
               <NexusMap
-                events={mode === 'events' ? events : peopleEvents}
-                people={mode === 'people' ? people : []}
+                events={events}
+                people={[]}
                 selected={selected}
                 onSelect={(s) => setSelected(s)}
-                highlightEventIds={highlight}
                 userPos={userPos}
                 distanceOrigin={mapOrigin}
-                onMapClick={mode === 'events' ? position => { setMapOrigin(position); setSelected(null); setLocationError('') } : undefined}
+                onMapClick={position => { setMapOrigin(position); setSelected(null); setLocationError('') }}
                 focus={focus}
               />
             </div>
@@ -329,48 +274,34 @@ export default function Explore() {
                 buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => buddyEvent(selectedEvent.id)}
                 reminder={reminders.has(selectedEvent.id)} onReminder={() => toggleReminder(selectedEvent.id)}
                 saved={saved.has(selectedEvent.id)} onSave={() => toggleSaved(selectedEvent.id)} people={allPeople}
-                backLabel={mode === 'events' ? 'All events' : 'All people'}
-                onPerson={(p) => { setMode('people'); select({ kind: 'person', id: p.id }, p.position) }} />
-            ) : selectedPerson ? (
-              <PersonDetail person={selectedPerson} events={allEvents} km={distanceKm(origin, selectedPerson.position)} onClose={() => setSelected(null)}
-                asked={buddyAsks.has(selectedPerson.id)} onAsk={() => toggle(setBuddyAsks, selectedPerson.id)}
-                onEvent={(e) => select({ kind: 'event', id: e.id }, e.position)} />
+                backLabel="All events"
+                onPerson={(p) => navigate(`/people/${p.id}`)} />
             ) : (
               <>
                 <div className="mb-3 flex items-center justify-between gap-2 px-1">
                   <p className="font-bold text-muted" aria-live="polite">
-                    {mode === 'events' ? `${count} event${count === 1 ? '' : 's'}` : `${count} ${count === 1 ? 'person' : 'people'}`}
+                    {`${count} event${count === 1 ? '' : 's'}`}
                     {mapOrigin ? ' near selected point' : userPos ? ' near you' : ' in Calgary'}
                   </p>
-                  {mode === 'events' && (
-                    <Segmented label="Sort events" value={sort} onChange={setSort} options={[{ value: 'near', label: 'Nearest' }, { value: 'soon', label: 'Soonest' }]} />
-                  )}
+                  <Segmented label="Sort events" value={sort} onChange={setSort} options={[{ value: 'near', label: 'Nearest' }, { value: 'soon', label: 'Soonest' }]} />
                 </div>
-                <ul aria-label={mode === 'events' ? 'Events' : 'People'} className="space-y-4 pb-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-                  {mode === 'events' && events.map((e) => (
+                <ul aria-label="Events" className="space-y-4 pb-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                  {events.map((e) => (
                     <li key={e.id}>
                       <EventCard event={e} km={e.km} going={rsvps.has(e.id)} saved={saved.has(e.id)}
                         onSave={() => toggleSaved(e.id)} onView={() => select({ kind: 'event', id: e.id }, e.position)} />
                     </li>
                   ))}
-                  {mode === 'people' && people.map((p) => (
-                    <li key={p.id}>
-                      <PersonCard person={p} km={p.km} asked={buddyAsks.has(p.id)} onAsk={() => toggle(setBuddyAsks, p.id)}
-                        onView={() => select({ kind: 'person', id: p.id }, p.position)} />
-                    </li>
-                  ))}
                   {count === 0 && (
-                    <li className="rounded-3xl border border-dashed border-line px-4 py-12 text-center text-muted" role={mode === 'events' && eventsError ? 'alert' : undefined}>
-                      {mode === 'events' && eventsError && !apiEvents ? (
+                    <li className="rounded-3xl border border-dashed border-line px-4 py-12 text-center text-muted" role={eventsError ? 'alert' : undefined}>
+                      {eventsError && !apiEvents ? (
                         <>Couldn’t load events. {eventsError.message}
                           <button type="button" onClick={reloadEvents} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Try again</button></>
-                      ) : mode === 'events' && eventsLoading && !apiEvents ? (
+                      ) : eventsLoading && !apiEvents ? (
                         'Finding events near you…'
                       ) : (
-                        <>{mode === 'people' && allPeople.length === 0
-                            ? <>No one to show yet. Follow people under Profile → Connections; they appear here once they share a neighbourhood.{!!peopleData?.hidden && ` (${peopleData.hidden} you follow keep their location private.)`}</>
-                            : 'Nothing matches yet.'}
-                          {mode === 'events' && filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
+                        <>Nothing matches yet.
+                          {filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
                       )}
                     </li>
                   )}
@@ -390,16 +321,6 @@ function Divider() {
   return <span className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden />
 }
 
-function ModeTab({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: ReactNode; label: string; count: number }) {
-  return (
-    <button type="button" role="tab" aria-selected={active} onClick={onClick}
-      className={cx('inline-flex items-center gap-2 rounded-full px-4 py-2 font-bold transition',
-        active ? 'btn-primary' : 'text-muted hover:text-fg')}>
-      {icon}{label}
-      <span className={cx('rounded-full px-2 py-0.5 text-xs tabular-nums', active ? 'bg-white/25' : 'bg-surface-2 text-muted')}>{count}</span>
-    </button>
-  )
-}
 
 function Tag({ children }: { children: ReactNode }) {
   return <span className="rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent-strong">{children}</span>
@@ -477,36 +398,6 @@ function Avatar({ person, size = 'md' }: { person: Person; size?: 'sm' | 'md' | 
   return <span className={cx('grid shrink-0 place-items-center rounded-full font-extrabold text-white', s)} style={{ background: person.color }} aria-hidden>{initials(person.name)}</span>
 }
 
-function PersonCard({ person: p, km, asked, onAsk, onView }: { person: Person; km: number; asked: boolean; onAsk: () => void; onView: () => void }) {
-  return (
-    <article className="nexus-card rounded-3xl border border-line p-5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar person={p} />
-          <div className="min-w-0">
-            <h3 className="truncate text-xl font-extrabold tracking-tight">{p.name}</h3>
-            <p className="text-sm font-semibold text-muted"><span className="capitalize">{p.relation}</span> · {p.neighbourhood} · going to {p.goingTo.length}</p>
-          </div>
-        </div>
-        <DistanceBadge km={km} />
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {p.interests.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
-        {p.openToBuddy && <span className="rounded-full bg-brand-tint px-3 py-1 text-sm font-semibold text-brand-strong">🤝 Open to go together</span>}
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={onView} className="btn-primary rounded-full px-5 py-2 font-bold">View profile</button>
-        {p.openToBuddy && (
-          <button type="button" onClick={onAsk} aria-pressed={asked}
-            className={cx('inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition',
-              asked ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface hover:bg-surface-2')}>
-            {asked ? <><Check className="size-4" aria-hidden /> Asked</> : <><UserPlus className="size-4" aria-hidden /> Ask to go together</>}
-          </button>
-        )}
-      </div>
-    </article>
-  )
-}
 
 function DetailCard({ label, backLabel, onClose, children }: { label: string; backLabel: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -561,7 +452,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
       {f && (
         <div className={cx('mt-5 rounded-2xl px-4 py-3 text-sm', tip ? 'bg-brand-tint text-brand-strong' : 'bg-accent-soft text-accent-strong')}>
           <p className="font-bold">
-            <span aria-hidden>{describe(f.code).emoji}</span> {describe(f.code).label}, {Math.round(f.min)}° to {Math.round(f.max)}°C
+            {(() => { const W = describe(f.code).icon; return <W className="inline size-4 align-[-3px]" aria-hidden /> })()} {describe(f.code).label}, {Math.round(f.min)}° to {Math.round(f.max)}°C
             <span className="font-semibold opacity-80"> · {e.indoor ? 'Indoors' : 'Outdoors'}</span>
           </p>
           {tip && <p className="mt-0.5">{tip}</p>}
@@ -617,48 +508,3 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
   )
 }
 
-function PersonDetail({ person: p, events, km, onClose, asked, onAsk, onEvent }: {
-  person: Person; events: NexusEvent[]; km: number; onClose: () => void; asked: boolean; onAsk: () => void; onEvent: (e: NexusEvent) => void
-}) {
-  const going = events.filter((e) => p.goingTo.includes(e.id))
-  return (
-    <DetailCard label={`Profile: ${p.name}`} backLabel="All people" onClose={onClose}>
-      <div className="flex items-center gap-4">
-        <Avatar person={p} size="lg" />
-        <div>
-          <h2 className="text-2xl font-extrabold leading-tight tracking-tight">{p.name}</h2>
-          <p className="text-muted">{p.neighbourhood} · about {fmtDistance(km)} away</p>
-          <span className="mt-1 inline-block rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-bold capitalize">{p.relation}</span>
-        </div>
-      </div>
-      {p.openToBuddy && (
-        <p className="mt-5 flex items-center gap-2 rounded-2xl bg-brand-tint px-4 py-3 text-sm font-bold text-brand-strong">
-          <HandHeart className="size-4.5" aria-hidden /> Open to going to events together
-        </p>
-      )}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {p.interests.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
-      </div>
-      {p.languages.length > 0 && <p className="mt-3 text-sm text-muted">Speaks {p.languages.join(', ')}</p>}
-
-      <h3 className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-accent-strong">Going to</h3>
-      <ul className="mt-2 space-y-2">
-        {going.map((e) => (
-          <li key={e.id}>
-            <button type="button" onClick={() => onEvent(e)} className="w-full rounded-2xl border border-line bg-surface p-3 text-left transition hover:border-brand/50">
-              <span className="block font-bold leading-snug">{e.title}</span>
-              <span className="text-sm text-muted">{fmtWhen(e.start, e.durationMin)} · {placeOf(e)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {p.openToBuddy && (
-        <button type="button" onClick={onAsk} aria-pressed={asked}
-          className={cx('mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-full px-5 py-2.5 font-bold transition',
-            asked ? 'border border-brand bg-brand-tint text-brand-strong' : 'btn-primary')}>
-          {asked ? <><Check className="size-4" aria-hidden /> Asked {p.name.split(' ')[0]}</> : <><UserPlus className="size-4" aria-hidden /> Ask to go together</>}
-        </button>
-      )}
-    </DetailCard>
-  )
-}

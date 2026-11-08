@@ -1,7 +1,7 @@
 // Create your own event. It goes on the Explore map with every other event:
 // public events for everyone, private events only for your friends (people you follow who follow you back).
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Globe, Lock, MapPin } from 'lucide-react'
 import { LocationPicker } from '../components/map/LocationPicker'
 import { Alert, Button, Card, cx, Field, PageHeader, Segmented } from '../components/ui'
@@ -26,10 +26,12 @@ const tomorrow = () => calgaryDay(new Date(Date.now() + 24 * 3600_000))
 export default function CreateEvent() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [from, setFrom] = useState(tomorrow)
-  const [to, setTo] = useState(tomorrow)
+  // "Make a plan" on the Plan page opens this form pre-filled (friends-only, on the day everyone is free).
+  const prefill = (useLocation().state as { prefill?: { day?: string; title?: string; description?: string; visibility?: Visibility } } | null)?.prefill
+  const [title, setTitle] = useState(prefill?.title ?? '')
+  const [description, setDescription] = useState(prefill?.description ?? '')
+  const [from, setFrom] = useState(prefill?.day ?? tomorrow())
+  const [to, setTo] = useState(prefill?.day ?? tomorrow())
   const [venue, setVenue] = useState('')
   const [address, setAddress] = useState('')
   const [position, setPosition] = useState<LatLng | null>(null)
@@ -37,7 +39,7 @@ export default function CreateEvent() {
   const [vibe, setVibe] = useState<Vibe>('either')
   const [cost, setCost] = useState('Free')
   const [indoor, setIndoor] = useState<'indoor' | 'outdoor'>('indoor')
-  const [visibility, setVisibility] = useState<Visibility>('public')
+  const [visibility, setVisibility] = useState<Visibility>(prefill?.visibility ?? 'public')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 

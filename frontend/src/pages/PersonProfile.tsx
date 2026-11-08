@@ -6,6 +6,7 @@ import { ArrowLeft, CalendarDays, Coffee, Lock, MapPin, Sparkles, UserCheck, Use
 import { Button, Card, ErrorState, Loading } from '../components/ui'
 import { api, ApiError } from '../lib/api'
 import { fmtWhen } from '../lib/nexus'
+import { BadgeIcon, type Badge } from '../components/Badges'
 
 type Person = {
   id: number; name: string; joined: string; is_me: boolean; private: boolean
@@ -21,6 +22,7 @@ export default function PersonProfile() {
   const [error, setError] = useState<ApiError | null>(null)
   const [busy, setBusy] = useState(false)
   const [retry, setRetry] = useState(0)
+  const [badges, setBadges] = useState<{ private: boolean; earned: number; badges: Badge[] } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -28,6 +30,7 @@ export default function PersonProfile() {
     api<Person>(`/api/social/people/${encodeURIComponent(id ?? '')}`)
       .then(p => { if (active) setPerson(p) })
       .catch(e => { if (active) setError(e instanceof ApiError ? e : new ApiError(0, String(e))) })
+    api<{ private: boolean; earned: number; badges: Badge[] }>(`/api/badges/user/${encodeURIComponent(id ?? '')}`).then(b => { if (active) setBadges(b) }).catch(() => {})
     return () => { active = false }
   }, [id, retry])
 
@@ -64,10 +67,11 @@ export default function PersonProfile() {
           <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
             {person.neighbourhood && <span className="inline-flex items-center gap-1.5"><MapPin size={15} aria-hidden />{person.neighbourhood}</span>}
             <span>Joined {joined}</span>
-            <span><strong className="text-fg">{person.follower_count}</strong> followers · <strong className="text-fg">{person.following_count}</strong> following</span>
+            <span><strong className="text-fg">{person.follower_count}</strong> followers · <strong className="text-fg">{person.following_count}</strong> following{badges && !badges.private && <> · <strong className="text-fg">{badges.earned}</strong> badges</>}</span>
             {person.follows_you && !person.is_me && <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-bold">Follows you</span>}
           </p>
           {person.bio && <p className="mt-4 whitespace-pre-wrap break-words leading-relaxed text-muted">{person.bio}</p>}
+          {badges && badges.badges.length > 0 && <ul className="mt-4 flex flex-wrap gap-2" aria-label="Badges">{badges.badges.map(b => <li key={b.id} title={`${b.name}: ${b.description}`}><BadgeIcon badge={b} size="sm" /><span className="sr-only">{b.name}</span></li>)}</ul>}
           {person.social_style && !person.private && <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1.5 text-sm font-bold text-accent-strong"><Coffee size={15} aria-hidden />{person.social_style}</span>}
         </div>
       </header>
@@ -83,7 +87,7 @@ export default function PersonProfile() {
               <span key={i} className={`rounded-full px-3 py-1.5 text-sm font-bold ${person.shared_interests?.includes(i) ? 'bg-brand-tint text-brand-strong' : 'bg-surface-2'}`}>{i}</span>)}</div>
               : <p className="mt-3 text-sm text-muted">No interests added yet.</p>}
             {!!person.shared_interests?.length && <p className="mt-4 flex items-center gap-1.5 text-sm font-bold text-brand-strong"><Sparkles size={15} aria-hidden /> You both like {person.shared_interests.join(', ')}</p>}
-            {person.instagram && <a href={`https://www.instagram.com/${encodeURIComponent(person.instagram)}/`} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-bold text-brand-strong">@{person.instagram} on Instagram ↗ <span className="font-normal text-muted">(self-reported)</span></a>}
+            {person.instagram && <a href={`https://www.instagram.com/${encodeURIComponent(person.instagram)}/`} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-bold text-brand-strong">@{person.instagram} on Instagram <span className="font-normal text-muted">(self-reported)</span></a>}
           </Card>
           <Card>
             <h2 className="flex items-center gap-2 text-lg font-extrabold"><CalendarDays size={18} aria-hidden /> Events they’re hosting</h2>

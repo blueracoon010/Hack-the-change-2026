@@ -340,6 +340,8 @@ def delete_event(event_id: int, user: User = Depends(get_current_user), session:
         raise HTTPException(404, "Event not found or not yours")
     session.exec(delete(EventRsvp).where(EventRsvp.event_id == event_id))
     session.exec(delete(EventSave).where(EventSave.event_id == event_id))
+    from ..badges.router import detach_checkins
+    detach_checkins(session, [event_id])
     session.delete(e)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

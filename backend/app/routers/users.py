@@ -7,6 +7,9 @@ from ..db import get_session
 from ..events.models import Event, EventRsvp, EventSave
 from ..models import User, Follow, SocialProfile, BuddyPreference, GroupMembership, GroupMessage, InviteCode
 from .community import delete_user_community_data
+from ..schedule.router import delete_user_schedule_data
+from ..schedule.models import BusyBlock, ScheduleSettings
+from ..badges.router import delete_user_badge_data, export_user_badge_data
 from ..schemas import UserOut, UserUpdate
 from ..security import get_current_user
 
@@ -35,7 +38,10 @@ def export_me(user: User = Depends(get_current_user), session: Session = Depends
         "saved_events": [s.model_dump(mode="json") for s in session.exec(select(EventSave).where(EventSave.user_id == user.id))],
         "community_groups": [m.model_dump(mode="json") for m in session.exec(select(GroupMembership).where(GroupMembership.user_id == user.id))],
         "community_messages": [m.model_dump(mode="json") for m in session.exec(select(GroupMessage).where(GroupMessage.user_id == user.id))],
-        "stored_fields": ["name", "email", "password (hashed with bcrypt, never stored in plain text)", "created_at", "connections", "optional social profile", "events you posted", "event RSVPs", "saved events and reminders", "community groups joined", "community messages you posted"],
+        "schedule_blocks": [b.model_dump(mode="json") for b in session.exec(select(BusyBlock).where(BusyBlock.user_id == user.id))],
+        "schedule_sharing": session.get(ScheduleSettings, user.id).model_dump(mode="json") if session.get(ScheduleSettings, user.id) else None,
+        "event_photos": export_user_badge_data(session, user.id),
+        "stored_fields": ["name", "email", "password (hashed with bcrypt, never stored in plain text)", "created_at", "connections", "optional social profile", "events you posted", "event RSVPs", "saved events and reminders", "community groups joined", "community messages you posted", "busy times you added or imported (no titles from imported calendars)", "your linked calendar address", "event photos and check-ins"],
     }
 
 
@@ -53,7 +59,11 @@ def delete_me(user: User = Depends(get_current_user), session: Session = Depends
     session.exec(delete(EventRsvp).where((EventRsvp.user_id == user.id) | EventRsvp.event_id.in_(mine)))
     session.exec(delete(EventSave).where((EventSave.user_id == user.id) | EventSave.event_id.in_(mine)))
     delete_user_community_data(session, user.id)
+    delete_user_schedule_data(session, user.id)
+    delete_user_badge_data(session, user.id)
     session.exec(delete(InviteCode).where(InviteCode.user_id == user.id))
+    from ..badges.router import detach_checkins
+    detach_checkins(session, mine)
     session.exec(delete(Event).where(Event.created_by == user.id))
     session.delete(user)
     session.commit()
