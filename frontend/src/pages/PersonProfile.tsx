@@ -3,7 +3,7 @@
 // Following a private account sends a request (the button shows "Requested" until they answer).
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, Clock, Coffee, Lock, MapPin, Sparkles, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Camera, Clock, Coffee, ExternalLink, Lock, MapPin, Sparkles, UserCheck, UserPlus } from 'lucide-react'
 import { Button, Card, ErrorState, Loading } from '../components/ui'
 import { api, ApiError } from '../lib/api'
 import { fmtWhen } from '../lib/nexus'
@@ -97,7 +97,6 @@ export default function PersonProfile() {
               <span key={i} className={`rounded-full px-3 py-1.5 text-sm font-bold ${person.shared_interests?.includes(i) ? 'bg-brand-tint text-brand-strong' : 'bg-surface-2'}`}>{i}</span>)}</div>
               : <p className="mt-3 text-sm text-muted">No interests added yet.</p>}
             {!!person.shared_interests?.length && <p className="mt-4 flex items-center gap-1.5 text-sm font-bold text-brand-strong"><Sparkles size={15} aria-hidden /> You both like {person.shared_interests.join(', ')}</p>}
-            {person.instagram && <a href={`https://www.instagram.com/${encodeURIComponent(person.instagram)}/`} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-bold text-brand-strong">@{person.instagram} on Instagram <span className="font-normal text-muted">(self-reported)</span></a>}
           </Card>
           <Card>
             <h2 className="flex items-center gap-2 text-lg font-extrabold"><CalendarDays size={18} aria-hidden /> Events they’re hosting</h2>
@@ -105,6 +104,15 @@ export default function PersonProfile() {
               <li key={e.id} className="rounded-xl border border-line p-3"><p className="font-bold leading-snug">{e.title}</p><p className="text-sm text-muted">{fmtWhen(new Date(e.start))}{e.venue && ` · ${e.venue}`}</p></li>)}</ul>
               : <p className="mt-3 text-sm text-muted">No upcoming events.</p>}
           </Card>
+          {person.instagram && (
+            <Card className="sm:col-span-2">
+              <h2 className="flex items-center gap-2 text-lg font-extrabold"><Camera size={18} aria-hidden /> Instagram</h2>
+              <a href={`https://www.instagram.com/${encodeURIComponent(person.instagram)}/`} target="_blank" rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 font-bold text-brand-strong hover:underline">
+                @{person.instagram} <ExternalLink size={14} aria-hidden /><span className="sr-only">(opens Instagram)</span>
+              </a>
+            </Card>
+          )}
         </div>
       )}
     </div>
