@@ -2,7 +2,7 @@
 // card for details, RSVP, "find a buddy", and which of your friends are going.
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
-  ArrowLeft, Bell, BellRing, Bookmark, Check, Clock, ExternalLink, Footprints, Globe, LocateFixed,
+  ArrowLeft, Bell, BellRing, Bookmark, Check, Clock, ExternalLink, Footprints, LocateFixed,
   Lock, MapPin, Search, Sparkles, Ticket, UserPlus, X,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -523,9 +523,6 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
           </a>
         )}
       </div>
-
-      <p className="mt-6 border-t border-line pt-5 text-xs text-muted">Hosts speak: {e.languages.join(', ')}</p>
-      {e.source && e.source !== 'community' && <p className="mt-1 flex items-center gap-1 text-xs text-muted"><Globe className="size-3.5" aria-hidden /> Live listing from {SOURCE_LABEL[e.source]}</p>}
     </DetailCard>
   )
 }
