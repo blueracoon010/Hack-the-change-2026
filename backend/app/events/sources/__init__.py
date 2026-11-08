@@ -8,6 +8,6 @@ To add a source (e.g. Eventbrite organizers, City of Calgary calendar): copy tic
 then add it to SOURCES below. Only real data: a source without a key returns nothing.
 """
 
-from . import meetup, ticketmaster
+from . import calgary, meetup, ticketmaster
 
-SOURCES = [ticketmaster, meetup]
+SOURCES = [ticketmaster, meetup, calgary]

@@ -13,7 +13,7 @@ Nexus is a community-events app for Calgary, built for Code the Change YYC 2026.
 
 | | |
 |---|---|
-| **Map of what's on** | The home screen is a map of Calgary events: live listings from Ticketmaster plus events people create in Nexus. Filter by type (tech, social, outdoorsy, arts, food…), introvert or extrovert vibe, date and distance. |
+| **Map of what's on** | The home screen is a map of Calgary events: live listings from Ticketmaster and the City of Calgary, plus events people create in Nexus. Filter by type (tech, social, outdoorsy, arts, food…), introvert or extrovert vibe, date and distance. |
 | **My people** | Switch the map to see the people you follow and which events they're going to. |
 | **Create events** | Host your own event with From and To dates and a place on the map. Make it **public** (everyone) or **friends only** (people you follow who follow you back). Manage them in *Profile → My events*. |
 | **Go together** | RSVP and say you're looking for a buddy, so nobody has to go alone. |
@@ -29,7 +29,7 @@ Nexus is a community-events app for Calgary, built for Code the Change YYC 2026.
 |---|---|
 | [`frontend/`](frontend/README.md) | React 19 + TypeScript + Vite + Tailwind. Runs in the browser or as an Electron desktop app. Maps use OpenStreetMap (Leaflet), or Google Maps if you add a key. |
 | [`backend/`](backend/README.md) | FastAPI + SQLModel API: accounts, events, RSVPs, follows, communities. Uses SQLite by default or a shared Postgres database. |
-| [`backend/app/events/`](backend/app/events/README.md) | Event sync from Ticketmaster, geocoding, and the events API. |
+| [`backend/app/events/`](backend/app/events/README.md) | Event sync from Ticketmaster and City of Calgary open data, geocoding, and the events API. |
 | [`cloud/`](cloud/README.md) | Docker and AWS deployment, plus the shared team database. |
 | [`ml/`](ml/README.md) | Model training left over from the starter template. |
 
@@ -79,7 +79,7 @@ Copy-Item frontend\.env.example frontend\.env
 
 Set in `backend/.env`:
 
-- `TICKETMASTER_API_KEY`: a free key from [developer.ticketmaster.com](https://developer.ticketmaster.com). Without it, the map only shows events created in Nexus.
+- `TICKETMASTER_API_KEY`: a free key from [developer.ticketmaster.com](https://developer.ticketmaster.com). Without it, the map still shows City of Calgary events (free, no key) and events created in Nexus.
 - `DATABASE_URL` and `JWT_SECRET`: leave these alone to use a local SQLite file (`backend/app.db`) that only you can see. To share users and events with the team, paste the values from the team's shared database settings (see [cloud/README.md](cloud/README.md)). Never commit `.env` files.
 
 ### 3. Start the backend (terminal 1)

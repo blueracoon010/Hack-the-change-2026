@@ -4,6 +4,7 @@ import os
 
 os.environ["TICKETMASTER_API_KEY"] = ""
 os.environ["MEETUP_ACCESS_TOKEN"] = ""
+os.environ["CALGARY_EVENTS"] = "0"
 os.environ["EVENTS_SYNC_MINUTES"] = "0"
 
 # Run the same tests against Postgres: TEST_DATABASE_URL=postgresql://user@localhost:5432/test_db python -m pytest -q

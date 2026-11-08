@@ -10,7 +10,7 @@ import {
 import { Button, Card, cx, PageHeader } from '../components/ui'
 import { api } from '../lib/api'
 import { groups, interests, useCommunityGroups, type ChatMessage, type Group, type GroupState } from '../lib/community'
-import { initials, TIME_ZONE } from '../lib/nexus'
+import { fmtCalgary, initials } from '../lib/nexus'
 
 const GROUP_ICONS: Record<string, LucideIcon> = { walk: Footprints, books: BookOpen, art: Palette, coffee: Coffee }
 const GroupIcon = ({ id, className }: { id: string; className?: string }) => {
@@ -346,7 +346,7 @@ function Channel({ group, channel, isMember, onOpen, onToggleMembership, members
                     <p className="flex flex-wrap items-baseline gap-x-2">
                       {m.mine ? <strong>{m.name} <span className="font-normal text-muted">(you)</span></strong>
                         : <Link to={`/people/${m.user_id}`} className="font-bold hover:text-brand-strong hover:underline">{m.name}</Link>}
-                      <time className="text-xs text-muted" dateTime={m.time}>{new Date(m.time).toLocaleString('en-CA', { timeZone: TIME_ZONE, dateStyle: 'medium', timeStyle: 'short' })}</time>
+                      <time className="text-xs text-muted" dateTime={m.time}>{fmtCalgary(new Date(m.time), { dateStyle: 'medium', timeStyle: 'short' })}</time>
                     </p>
                     <p className="whitespace-pre-wrap break-words leading-relaxed">{m.text}</p>
                   </div>

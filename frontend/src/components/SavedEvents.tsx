@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Bell, BellOff, Bookmark, BookmarkX, Check, MapPin, Users } from 'lucide-react'
 import { useApi } from '../hooks/useApi'
 import { api } from '../lib/api'
-import { fmtWhen, fromApi, SOURCE_LABEL, TIME_ZONE, type ApiEvent, type NexusEvent } from '../lib/nexus'
+import { fmtWhen, fromApi, SOURCE_LABEL, fmtCalgary, type ApiEvent, type NexusEvent } from '../lib/nexus'
 import { Button, Card, cx, ErrorState, Loading } from './ui'
 
 export function SavedEvents() {
@@ -60,8 +60,8 @@ function SavedRow({ event: e, reminder, past, onChange }: { event: NexusEvent; r
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const month = e.start.toLocaleDateString('en-CA', { month: 'short', timeZone: TIME_ZONE })
-  const day = e.start.toLocaleDateString('en-CA', { day: 'numeric', timeZone: TIME_ZONE })
+  const month = fmtCalgary(e.start, { month: 'short' })
+  const day = fmtCalgary(e.start, { day: 'numeric' })
 
   async function setFlags(next: { saved: boolean; reminder: boolean }) {
     setBusy(true); setError(null)

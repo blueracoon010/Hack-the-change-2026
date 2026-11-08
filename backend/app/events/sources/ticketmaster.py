@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from ...config import settings
+from .. import calgary_time
 from ..schemas import EventIn
 
 NAME = "ticketmaster"
@@ -26,8 +27,7 @@ def _parse_dt(dates: dict, key: str) -> datetime | None:
         return datetime.fromisoformat(part["dateTime"].replace("Z", "+00:00"))
     if part.get("localDate"):  # date only (TBA time): assume local noon-ish; marked by the source
         local = f'{part["localDate"]}T{part.get("localTime") or "12:00:00"}'
-        tz = timezone(timedelta(hours=-7))  # Mountain; only used when Ticketmaster gives no UTC time
-        return datetime.fromisoformat(local).replace(tzinfo=tz)
+        return calgary_time.to_utc(datetime.fromisoformat(local))  # only used when Ticketmaster gives no UTC time
     return None
 
 

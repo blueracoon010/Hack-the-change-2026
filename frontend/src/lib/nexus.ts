@@ -29,7 +29,7 @@ export type NexusEvent = {
   description: string
   scannedFrom: string // where the flyer was photographed
   // Set for live events from the backend:
-  source?: 'ticketmaster' | 'meetup' | 'community'
+  source?: 'ticketmaster' | 'meetup' | 'calgary' | 'community'
   url?: string | null // tickets / RSVP on the source site
   imageUrl?: string | null
   meGoing?: boolean
@@ -58,7 +58,7 @@ export function fromApi(e: ApiEvent): NexusEvent {
 
 /** Where a live event came from, for the "Listed on …" credit. */
 export const SOURCE_LABEL: Record<NonNullable<NexusEvent['source']>, string> = {
-  ticketmaster: 'Ticketmaster', meetup: 'Meetup', community: 'Nexus community',
+  ticketmaster: 'Ticketmaster', meetup: 'Meetup', calgary: 'City of Calgary', community: 'Nexus community',
 }
 
 export type Relation = 'following' | 'connection'
@@ -118,17 +118,40 @@ export function fmtDistance(km: number) {
 /** Every date in the app is shown in Calgary time, whatever time zone the laptop is set to, so all devices agree. */
 export const TIME_ZONE = 'America/Edmonton'
 
-/** Calendar day in Calgary, e.g. "2026-11-07". Use this instead of toDateString() for "today" checks. */
-export const calgaryDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: TIME_ZONE })
+/**
+ * Calgary's offset from UTC, in minutes. We work it out ourselves instead of asking the browser, because
+ * Alberta stopped changing its clocks: after springing forward on March 8, 2026 it stays on UTC-6
+ * ("Alberta Time") all year, and many browsers' time-zone data still expects it to fall back to UTC-7.
+ * Before that: Mountain time, UTC-7, with daylight saving (UTC-6) from the 2nd Sunday of March to the 1st Sunday of November.
+ */
+export function calgaryOffsetMin(d: Date): number {
+  const t = d.getTime()
+  if (t >= Date.UTC(2026, 2, 8, 9)) return -360
+  const y = d.getUTCFullYear()
+  const sunday = (month: number, n: number) => 1 + ((7 - new Date(Date.UTC(y, month, 1)).getUTCDay()) % 7) + 7 * (n - 1)
+  const dstStart = Date.UTC(y, 2, sunday(2, 2), 9) // 2 a.m. MST
+  const dstEnd = Date.UTC(y, 10, sunday(10, 1), 8) // 2 a.m. MDT
+  return t >= dstStart && t < dstEnd ? -360 : -420
+}
 
-export const fmtTime = (d: Date) => d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: TIME_ZONE })
+/** A Date whose UTC fields read as Calgary wall-clock time. Only for formatting with timeZone: 'UTC'. */
+const calgaryWall = (d: Date) => new Date(d.getTime() + calgaryOffsetMin(d) * 60_000)
+
+/** Format a moment in Calgary time, e.g. fmtCalgary(d, { month: 'short', day: 'numeric' }). */
+export const fmtCalgary = (d: Date, options: Intl.DateTimeFormatOptions) =>
+  calgaryWall(d).toLocaleString('en-CA', { ...options, timeZone: 'UTC' })
+
+/** Calendar day in Calgary, e.g. "2026-11-07". Use this instead of toDateString() for "today" checks. */
+export const calgaryDay = (d: Date) => calgaryWall(d).toISOString().slice(0, 10)
+
+export const fmtTime = (d: Date) => fmtCalgary(d, { hour: 'numeric', minute: '2-digit' })
 
 const sameDay = (a: Date, b: Date) => calgaryDay(a) === calgaryDay(b)
 
-const calgaryParts = (d: Date) => Object.fromEntries(
-  new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-    .formatToParts(d).map((p) => [p.type, p.value]),
-)
+const calgaryParts = (d: Date) => {
+  const iso = calgaryWall(d).toISOString() // "2026-11-08T18:00:00.000Z" in Calgary wall time
+  return { year: iso.slice(0, 4), month: iso.slice(5, 7), day: iso.slice(8, 10), hour: iso.slice(11, 13), minute: iso.slice(14, 16) }
+}
 
 /** Date -> "2026-11-08T18:00" in Calgary time, for <input type="datetime-local">. */
 export function toCalgaryInput(d: Date) {
@@ -142,7 +165,7 @@ export function fromCalgaryInput(value: string): Date {
   const [y, m, d] = day.split('-').map(Number)
   const [hh, mm] = time.split(':').map(Number)
   const wall = Date.UTC(y, m - 1, d, hh, mm)
-  const offset = (ts: number) => { const p = calgaryParts(new Date(ts)); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - ts }
+  const offset = (ts: number) => calgaryOffsetMin(new Date(ts)) * 60_000
   return new Date(wall - offset(wall - offset(wall))) // twice, so daylight-saving changeovers land right
 }
 
@@ -156,7 +179,7 @@ export const isAllDay = (start: Date, durationMin: number) => atMidnight(start) 
 export function fmtDay(d: Date, now = new Date()) {
   if (sameDay(d, now)) return 'Today'
   if (sameDay(d, new Date(now.getTime() + 24 * 3600_000))) return 'Tomorrow'
-  return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', timeZone: TIME_ZONE })
+  return fmtCalgary(d, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 /** "Tomorrow · 6:00 p.m."; all-day events show "Tomorrow · All day" or "Sat, Nov 8 – Mon, Nov 10". */

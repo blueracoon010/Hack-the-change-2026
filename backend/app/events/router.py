@@ -121,7 +121,7 @@ def list_events(
     category: list[str] = Query([], description="Repeat to OR them: ?category=tech&category=arts"),
     vibe: str | None = None,
     q: str | None = Query(None, description="Search title, host, venue"),
-    source: str | None = Query(None, description="ticketmaster | meetup | community"),
+    source: str | None = Query(None, description="ticketmaster | meetup | calgary | community"),
     include_online: bool = Query(False, alias="includeOnline"),
     limit: int = Query(500, ge=1, le=2000),
     user_id: int | None = Depends(optional_user_id),
@@ -285,7 +285,7 @@ def save_event(event_id: int, body: SaveIn, user: User = Depends(get_current_use
 async def sync_now(_: User = Depends(get_current_user)) -> dict:
     """Pull fresh events from every configured source right now (signed-in users only, to protect API quotas)."""
     if not any(s.configured() for s in SOURCES):
-        raise HTTPException(400, "No event sources configured. Set TICKETMASTER_API_KEY and/or MEETUP_ACCESS_TOKEN in backend/.env")
+        raise HTTPException(400, "No event sources configured. Set TICKETMASTER_API_KEY, MEETUP_ACCESS_TOKEN or CALGARY_EVENTS=1 in backend/.env")
     runs = await sync_all(force=True)
     return {"runs": [r.model_dump(mode="json") for r in runs]}
 

@@ -23,6 +23,7 @@ class Settings:
     # Events -> map (see app/events/README.md). A source with no key is skipped, never faked.
     ticketmaster_api_key = os.getenv("TICKETMASTER_API_KEY", "")
     meetup_access_token = os.getenv("MEETUP_ACCESS_TOKEN", "")
+    calgary_events = os.getenv("CALGARY_EVENTS", "1").strip().lower() not in ("0", "false", "no", "off")  # City of Calgary open data, no key
     events_center_lat = float(os.getenv("EVENTS_CENTER_LAT", "51.0447"))  # downtown Calgary
     events_center_lon = float(os.getenv("EVENTS_CENTER_LON", "-114.0719"))
     events_radius_km = float(os.getenv("EVENTS_RADIUS_KM", "50"))

@@ -108,7 +108,7 @@ class EventOut(Camel):
     description: str
     scanned_from: str
     # --- extras ---
-    source: str  # ticketmaster | meetup | community
+    source: str  # ticketmaster | meetup | calgary | community
     end: str | None
     url: str | None  # open this for tickets / RSVP on the source site
     image_url: str | None

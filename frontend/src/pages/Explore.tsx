@@ -605,7 +605,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
         {e.url && e.source && (
           <a href={e.url} target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-5 py-2.5 font-bold transition hover:bg-surface-2">
-            <Ticket className="size-4" aria-hidden /> {e.source === 'community' ? 'Event page' : `Tickets on ${SOURCE_LABEL[e.source]}`}
+            <Ticket className="size-4" aria-hidden /> {e.source === 'community' ? 'Event page' : e.source === 'calgary' ? 'More info' : `Tickets on ${SOURCE_LABEL[e.source]}`}
             <ExternalLink className="size-3.5" aria-hidden /><span className="sr-only">(opens in your browser)</span>
           </a>
         )}
