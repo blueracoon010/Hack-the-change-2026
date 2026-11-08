@@ -8,6 +8,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
 import { EventBuddies } from '../components/BuddyPreferences'
+import { DayPicker } from '../components/DayPicker'
 import { cx, Segmented } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
@@ -17,7 +18,7 @@ import {
   type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Vibe,
 } from '../lib/nexus'
 
-type When = 'today' | 'week' | 'all'
+type When = 'today' | 'week' | 'day'
 type Sort = 'near' | 'soon'
 type SetToggle = Dispatch<SetStateAction<Set<string>>>
 
@@ -33,6 +34,7 @@ export default function Explore() {
   const [cats, setCats] = useState<Set<Category>>(new Set())
   const [vibe, setVibe] = useState<Vibe | 'all'>('all')
   const [when, setWhen] = useState<When>('week')
+  const [day, setDay] = useState<string | null>(null) // when === 'day': the Calgary day picked in the calendar
   const [sort, setSort] = useState<Sort>('near')
   const [radiusKm, setRadiusKm] = useState<number | null>(null)
   const [locationError, setLocationError] = useState('')
@@ -118,12 +120,12 @@ export default function Explore() {
     return allEvents
       .filter((e) => cats.size === 0 || e.categories.some((c) => cats.has(c)))
       .filter((e) => vibe === 'all' || e.vibe === vibe)
-      .filter((e) => when === 'all' || (when === 'today' ? calgaryDay(e.start) === calgaryDay(now) : e.start <= weekOut))
+      .filter((e) => when === 'week' ? e.start <= weekOut : happensOn(e, when === 'day' && day ? day : calgaryDay(now)))
       .filter((e) => !q || [e.title, e.host, e.venue, e.description].some((s) => s.toLowerCase().includes(q)))
       .map((e) => ({ ...e, km: distanceKm(origin, e.position) }))
       .filter((e) => radiusKm === null || e.km <= radiusKm)
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
-  }, [allEvents, cats, vibe, when, q, origin, sort, radiusKm])
+  }, [allEvents, cats, vibe, when, day, q, origin, sort, radiusKm])
 
   const selectedEvent = selected?.kind === 'event' ? allEvents.find((e) => e.id === selected.id) ?? null : null
 
@@ -153,13 +155,20 @@ export default function Explore() {
     if (!focusEventId) return
     const ev = allEvents.find((e) => e.id === focusEventId)
     if (!ev) return
-    setQuery(''); setCats(new Set()); setVibe('all'); setWhen('all'); setRadiusKm(null)
+    setQuery(''); setCats(new Set()); setVibe('all'); setWhen('day'); setDay(calgaryDay(ev.start)); setRadiusKm(null)
     select({ kind: 'event', id: ev.id }, ev.position)
     navigate('.', { replace: true, state: null })
   }, [focusEventId, allEvents]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
-  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week'); setRadiusKm(null) }
+  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week'); setDay(null); setRadiusKm(null) }
+  const pickWhen = (w: When) => { setWhen(w); if (w !== 'day') setDay(null) }
+  // Events per Calgary day, for the dots in the calendar.
+  const dayCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const e of allEvents) for (const d of daysOf(e)) m.set(d, (m.get(d) ?? 0) + 1)
+    return m
+  }, [allEvents])
   const count = events.length
 
   return (
@@ -194,6 +203,14 @@ export default function Explore() {
               {[1, 5, 10, 25, 50, 100].map(km => <option key={km} value={km}>Within {km} km</option>)}
             </select>
           </label>
+          <div className="flex items-center gap-2">
+            <Segmented label="When" value={when === 'day' ? ('' as When) : when} onChange={pickWhen} options={[
+              { value: 'today', label: 'Today' },
+              { value: 'week', label: 'This week' },
+            ]} />
+            <DayPicker value={when === 'day' ? day : null} counts={dayCounts}
+              onChange={(d) => { setWhen('day'); setDay(d); setSelected(null) }} onClear={() => pickWhen('week')} />
+          </div>
           {locationError && <p role="status" className="w-full text-sm text-danger">{locationError}</p>}
         </div>
         {/* Filters */}
@@ -222,14 +239,6 @@ export default function Explore() {
                   { value: 'introvert', label: 'Introvert' },
                   { value: 'either', label: 'Mixed' },
                   { value: 'extrovert', label: 'Extrovert' },
-                ]} />
-              </div>
-              <Divider />
-              <div className="shrink-0">
-                <Segmented label="When" value={when} onChange={setWhen} options={[
-                  { value: 'today', label: 'Today' },
-                  { value: 'week', label: 'This week' },
-                  { value: 'all', label: 'Anytime' },
                 ]} />
               </div>
               {filtersActive && (
@@ -316,6 +325,19 @@ export default function Explore() {
 }
 
 // ---------------- pieces ----------------
+
+/** Calgary days an event touches: one for most events, several for multi-day ones. */
+function daysOf(e: NexusEvent): string[] {
+  const out: string[] = []
+  const last = calgaryDay(new Date(e.start.getTime() + Math.max(e.durationMin - 1, 0) * 60_000))
+  for (let d = calgaryDay(e.start); d <= last && out.length < 31; ) {
+    out.push(d)
+    const next = new Date(`${d}T12:00:00Z`); next.setUTCDate(next.getUTCDate() + 1); d = next.toISOString().slice(0, 10)
+  }
+  return out
+}
+
+const happensOn = (e: NexusEvent, day: string) => daysOf(e).includes(day)
 
 function Divider() {
   return <span className="mx-1 h-6 w-px shrink-0 bg-line" aria-hidden />
