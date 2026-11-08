@@ -19,7 +19,10 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "volunteer": ["volunteer", "clean-up", "cleanup", "charity", "fundraiser", "donate", "food bank", "nonprofit"],
 }
 
-INTROVERT_WORDS = ["small group", "quiet", "silent", "book club", "meditation", "yoga", "beginner", "workshop", "low pressure", "walk", "sketch", "knit", "study"]
+INTROVERT_WORDS = ["small group", "quiet", "silent", "book club", "meditation", "yoga", "beginner", "workshop", "low pressure", "walk", "sketch", "knit", "study",
+                   # calmer, low-key formats common in Calgary's community and library listings
+                   "coffee", "conversation", "tea", "library", "reading", "storytime", "craft", "class", "lecture", "talk", "museum", "gallery",
+                   "garden", "paint", "information", "luncheon", "drop-in", "seniors", "volunteer", "puzzle", "writing", "journal"]
 EXTROVERT_WORDS = ["concert", "party", "festival", "game", "mixer", "networking", "dance", "nightclub", "stadium", "tournament", "comedy", "live music", "rave",
                    "music", "tour", "hockey", "basketball", "football", "soccer", "lacrosse", "wrestling", " vs"]
 
