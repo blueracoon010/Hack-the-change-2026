@@ -4,8 +4,9 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { NAV } from '../config/nav'
 import { useAuth } from '../context/AuthContext'
+import { Backdrop } from './Backdrop'
 import { Logo } from './Logo'
-import { ThemeToggle } from './ThemeToggle'
+import { UserAvatar } from './UserAvatar'
 import { cx } from './ui'
 
 export function AppLayout() {
@@ -14,12 +15,13 @@ export function AppLayout() {
   const location = useLocation()
   const current = NAV.find((n) => n.path === location.pathname)
   const fullBleed = !!current?.fullBleed
+  const backdrop = current?.backdrop ?? 'soft'
 
   return (
     <div className="flex min-h-screen">
       <a href="#main" className="skip-link" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus() }}>Skip to content</a>
 
-      <aside className={cx('sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-sidebar p-3 transition-all md:flex', collapsed ? 'w-20' : 'w-64')}>
+      <aside className={cx('sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r aside-wash p-3 transition-all md:flex', collapsed ? 'w-20' : 'w-60')}>
         <div className={cx('mb-6 flex items-center px-2 pt-2', collapsed ? 'justify-center' : 'justify-between')}>
           <Logo compact={collapsed} />
         </div>
@@ -27,34 +29,37 @@ export function AppLayout() {
           {NAV.map(({ path, label, icon: Icon }) => (
             <NavLink key={path} to={path} end title={collapsed ? label : undefined}
               className={({ isActive }) => cx(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 font-bold transition',
+                'nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
                 collapsed && 'justify-center',
-                isActive ? 'bg-brand-tint text-brand-strong' : 'text-muted hover:bg-surface-2 hover:text-fg',
+                isActive ? 'active font-semibold' : '',
               )}>
-              <Icon className="size-5 shrink-0" aria-hidden />
+              <Icon className="size-[18px] shrink-0" aria-hidden />
               <span className={collapsed ? 'sr-only' : ''}>{label}</span>
             </NavLink>
           ))}
         </nav>
+        {!collapsed && (
+          <figure className="mx-2 mb-4 mt-6 border-t border-[var(--aside-line)] pt-4">
+            <blockquote className="font-display text-[15px] leading-snug text-[var(--aside-fg)]">Small hellos make big days.</blockquote>
+          </figure>
+        )}
         <button type="button" onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={cx('flex items-center gap-3 rounded-xl px-3 py-2.5 font-bold text-muted hover:bg-surface-2 hover:text-fg', collapsed && 'justify-center')}>
+          className={cx('nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium', collapsed && 'justify-center')}>
           {collapsed ? <PanelLeftOpen className="size-5" aria-hidden /> : <PanelLeftClose className="size-5" aria-hidden />}
           {!collapsed && 'Collapse'}
         </button>
       </aside>
 
-      <div className={cx('flex min-w-0 flex-1 flex-col', fullBleed && 'h-screen')}>
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-bg/85 px-6 py-3 backdrop-blur">
+      <div className={cx('relative isolate flex min-w-0 flex-1 flex-col', fullBleed && 'h-screen', backdrop === 'bold' && 'on-community')}>
+        {backdrop !== 'none' && <Backdrop variant={backdrop} seed={location.pathname} />}
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-black/5 bg-[var(--page)]/85 px-6 backdrop-blur-md">
           <div className="md:hidden"><Logo compact /></div>
-          <p className="hidden text-sm font-bold text-muted md:block">{current?.label}</p>
+          <div className="hidden md:block" />
           <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <p className="text-sm font-bold">{user?.name}</p>
-            <span className="grid size-10 place-items-center rounded-full bg-pink font-extrabold text-navy" aria-hidden>
-              {user?.name?.[0]?.toUpperCase() ?? '?'}
-            </span>
+            <p className="text-sm font-medium">{user?.name}</p>
+            <UserAvatar id={user?.id} name={user?.name ?? '?'} className="size-8 text-sm" />
             <button type="button" onClick={logout} aria-label="Sign out" title="Sign out"
-              className="flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 font-bold text-muted hover:bg-surface-2 hover:text-fg">
+              className="flex min-h-9 items-center justify-center gap-2 rounded-lg px-2.5 text-sm font-medium text-muted hover:bg-chat-side hover:text-fg">
               <LogOut className="size-5" aria-hidden />
               <span className="hidden sm:inline">Sign out</span>
             </button>

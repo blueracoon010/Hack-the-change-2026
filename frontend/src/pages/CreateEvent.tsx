@@ -7,6 +7,7 @@ import { LocationPicker } from '../components/map/LocationPicker'
 import { Alert, Button, Card, cx, Field, PageHeader, Segmented } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
+import { POP_DOTS } from '../lib/pop'
 import {
   calgaryDay, CATEGORIES, fmtDay, fromCalgaryInput,
   type ApiEvent, type Category, type LatLng, type Vibe, type Visibility,
@@ -27,14 +28,14 @@ export default function CreateEvent() {
   const { user } = useAuth()
   const navigate = useNavigate()
   // "Make a plan" on the Plan page opens this form pre-filled (friends-only, on the day everyone is free).
-  const prefill = (useLocation().state as { prefill?: { day?: string; title?: string; description?: string; visibility?: Visibility } } | null)?.prefill
+  const prefill = (useLocation().state as { prefill?: { day?: string; title?: string; description?: string; visibility?: Visibility; venue?: string; address?: string; position?: LatLng | null } } | null)?.prefill
   const [title, setTitle] = useState(prefill?.title ?? '')
   const [description, setDescription] = useState(prefill?.description ?? '')
   const [from, setFrom] = useState(prefill?.day ?? tomorrow())
   const [to, setTo] = useState(prefill?.day ?? tomorrow())
-  const [venue, setVenue] = useState('')
-  const [address, setAddress] = useState('')
-  const [position, setPosition] = useState<LatLng | null>(null)
+  const [venue, setVenue] = useState(prefill?.venue ?? '')
+  const [address, setAddress] = useState(prefill?.address ?? '')
+  const [position, setPosition] = useState<LatLng | null>(prefill?.position ?? null)
   const [cats, setCats] = useState<Category[]>([])
   const [vibe, setVibe] = useState<Vibe>('either')
   const [cost, setCost] = useState('Free')
@@ -82,11 +83,11 @@ export default function CreateEvent() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <PageHeader title="Create an event" subtitle="Host something in your neighbourhood. It shows up on the map with every other event." />
+    <div className="mx-auto max-w-[52rem]">
+      <PageHeader title="Bring people" accent="together" subtitle="Host something in your neighbourhood. It shows up on the map with every other event." />
 
       <form onSubmit={submit} className="space-y-6" noValidate>
-        <Card>
+        <Step n={1}><Card>
           <SectionTitle>What’s happening?</SectionTitle>
           <div className="space-y-4">
             <Field label="Event name" required minLength={3} maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)}
@@ -98,9 +99,9 @@ export default function CreateEvent() {
                 className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/15" />
             </label>
           </div>
-        </Card>
+        </Card></Step>
 
-        <Card>
+        <Step n={2}><Card>
           <SectionTitle>When</SectionTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="From" type="date" required min={calgaryDay(new Date())} value={from}
@@ -110,9 +111,9 @@ export default function CreateEvent() {
               onChange={(e) => setTo(e.target.value)}
               hint={from && to && daysBetween(from, to) >= 1 ? (daysBetween(from, to) === 1 ? 'One day' : `${daysBetween(from, to)} days`) : undefined} />
           </div>
-        </Card>
+        </Card></Step>
 
-        <Card>
+        <Step n={3}><Card>
           <SectionTitle>Where</SectionTitle>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -127,9 +128,9 @@ export default function CreateEvent() {
               <p className="mt-2 text-xs text-muted">A pin is the most accurate. Without one, we find the address on the map for you.</p>
             </div>
           </div>
-        </Card>
+        </Card></Step>
 
-        <Card>
+        <Step n={4}><Card>
           <SectionTitle>What kind of event</SectionTitle>
           <div className="space-y-5">
             <div>
@@ -141,7 +142,7 @@ export default function CreateEvent() {
                   return (
                     <button key={c} type="button" aria-pressed={on} onClick={() => toggleCat(c)} disabled={!on && cats.length >= MAX_CATS}
                       className={cx('inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition disabled:opacity-40',
-                        on ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:text-fg')}>
+                        on ? 'border-[var(--edge)] bg-fg text-bg' : 'border-[var(--edge)] bg-surface text-fg hover:text-fg')}>
                       <Icon className="size-4" aria-hidden />
                       {CATEGORIES[c].label}
                     </button>
@@ -163,9 +164,9 @@ export default function CreateEvent() {
             </div>
             <Field label="Cost" maxLength={40} value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Free, $10, Pay what you can" className="max-w-xs" />
           </div>
-        </Card>
+        </Card></Step>
 
-        <Card>
+        <Step n={5} last><Card>
           <SectionTitle>Who can see it</SectionTitle>
           <div role="radiogroup" aria-label="Who can see it" className="grid gap-3 sm:grid-cols-2">
             <VisibilityOption checked={visibility === 'public'} onSelect={() => setVisibility('public')} icon={<Globe className="size-5" aria-hidden />}
@@ -173,7 +174,7 @@ export default function CreateEvent() {
             <VisibilityOption checked={visibility === 'private'} onSelect={() => setVisibility('private')} icon={<Lock className="size-5" aria-hidden />}
               title="Friends only" text="Only your friends see it: people you follow who follow you back." />
           </div>
-        </Card>
+        </Card></Step>
 
         {error && <Alert>{error}</Alert>}
         <div className="flex flex-wrap items-center justify-end gap-3 pb-6">
@@ -189,6 +190,19 @@ export default function CreateEvent() {
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="mb-4 text-lg font-extrabold">{children}</h2>
+}
+
+/** One step of the form: a numbered dot in the card palette on a rail beside the card, joined to the next step by a line. */
+function Step({ n, last, children }: { n: number; last?: boolean; children: ReactNode }) {
+  return (
+    <div className="flex gap-3 sm:gap-5">
+      <div className="relative hidden w-8 shrink-0 justify-center sm:flex" aria-hidden>
+        <span className={`relative z-10 mt-5 grid size-8 place-items-center rounded-full text-sm font-bold ${POP_DOTS[(n - 1) % POP_DOTS.length]}`}>{n}</span>
+        {!last && <span className="absolute -bottom-11 left-1/2 top-[3.25rem] w-0.5 -translate-x-1/2 rounded-full bg-line" />}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
 }
 
 function VisibilityOption({ checked, onSelect, icon, title, text }: { checked: boolean; onSelect: () => void; icon: ReactNode; title: string; text: string }) {

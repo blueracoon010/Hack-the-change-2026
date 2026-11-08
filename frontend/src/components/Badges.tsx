@@ -23,7 +23,7 @@ export const BADGE_ICONS: Record<string, LucideIcon> = {
 
 export function BadgeIcon({ badge, size = 'md' }: { badge: Pick<Badge, 'icon' | 'earned' | 'name'>; size?: 'sm' | 'md' }) {
   const Icon = BADGE_ICONS[badge.icon] ?? Sun
-  return <span className={cx('relative grid shrink-0 place-items-center rounded-full', size === 'sm' ? 'size-9' : 'size-16',
+  return <span className={cx('badge-icon relative grid shrink-0 place-items-center rounded-full', badge.earned && 'earned', size === 'sm' ? 'size-9' : 'size-16',
     badge.earned ? 'bg-mustard text-navy ring-1 ring-navy/10' : 'bg-surface-2 text-muted ring-1 ring-line')}>
     <Icon className={size === 'sm' ? 'size-4' : 'size-7'} aria-hidden />
     {!badge.earned && size === 'md' && <Lock className="absolute -bottom-0.5 -right-0.5 size-5 rounded-full bg-surface p-1 text-muted ring-1 ring-line" aria-hidden />}
@@ -44,25 +44,17 @@ export function useBadgeSummary() {
 
 export function Badges() {
   const summary = useBadgeSummary()
-  const [photos, setPhotos] = useState<CheckIn[]>([])
   const [adding, setAdding] = useState(false)
   const [celebrate, setCelebrate] = useState<Badge[]>([])
-  const [error, setError] = useState('')
-  const loadPhotos = () => api<CheckIn[]>('/api/badges/checkins').then(setPhotos).catch(e => setError(e.message))
-  useEffect(() => { void loadPhotos() }, [])
-  async function remove(id: number) {
-    try { await api(`/api/badges/checkins/${id}`, { method: 'DELETE' }); await loadPhotos(); window.dispatchEvent(new Event('nexus-badges-updated')) } catch (e) { setError((e as Error).message) }
-  }
   if (!summary) return <p className="py-10 text-center text-muted" role="status">Loading badges…</p>
   const next = summary.badges.find(b => b.kind === 'milestone' && !b.earned)
   const groups: [string, Badge[]][] = [['Showing up', summary.badges.filter(b => b.kind === 'milestone')], ['Connecting', summary.badges.filter(b => b.kind === 'connection')]]
 
   return <div className="space-y-6">
-    {error && <Alert>{error}</Alert>}
     <Card className="overflow-hidden p-0">
-      <div className="flex flex-wrap items-center gap-5 bg-sidebar p-5 sm:p-6">
+      <div className="card-pop card-red flex flex-wrap items-center gap-5 p-5 sm:p-6">
         <div className="flex items-center gap-4">
-          <span className="grid size-16 place-items-center rounded-2xl bg-brand text-on-brand shadow-sm"><Camera className="size-7" aria-hidden /></span>
+          <span className="grid size-16 place-items-center rounded-2xl bg-[#2B2B2B] text-white"><Camera className="size-7" aria-hidden /></span>
           <div>
             <p className="text-3xl font-extrabold tabular-nums">{summary.earned}<span className="text-base font-bold text-muted"> / {summary.total}</span></p>
             <p className="text-sm font-bold text-muted">badges · {summary.attended} {summary.attended === 1 ? 'event' : 'events'}</p>
@@ -82,7 +74,7 @@ export function Badges() {
     {groups.map(([title, list]) => <section key={title} aria-labelledby={`badges-${title}`}>
       <h2 id={`badges-${title}`} className="mb-3 text-sm font-extrabold uppercase tracking-wide text-muted">{title}</h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {list.map(b => <li key={b.id} title={b.description} className={cx('flex flex-col items-center gap-2 rounded-2xl border p-4 text-center', b.earned ? 'border-brand/40 bg-surface' : 'border-line bg-surface/60')}>
+        {list.map((b) => <li key={b.id} title={b.description} className={cx('flex flex-col items-center gap-2 rounded-2xl border p-4 text-center', b.earned ? 'card-pop card-yellow' : 'border-line bg-surface/60')}>
           <BadgeIcon badge={b} />
           <p className={cx('text-sm font-extrabold leading-tight', !b.earned && 'text-muted')}>{b.name}</p>
           <p className="sr-only">{b.description}. {b.earned ? 'Earned.' : `${b.progress} of ${b.goal}.`}</p>
@@ -92,9 +84,47 @@ export function Badges() {
       </ul>
     </section>)}
 
+    {adding && <AddPhoto onClose={() => setAdding(false)} onDone={(fresh) => { setAdding(false); setCelebrate(fresh); window.dispatchEvent(new Event('nexus-badges-updated')) }} />}
+    <Celebration badges={celebrate} onClose={() => setCelebrate([])} />
+  </div>
+}
+
+function Celebration({ badges, onClose }: { badges: Badge[]; onClose: () => void }) {
+  if (!badges.length) return null
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={e => e.target === e.currentTarget && onClose()}>
+    <div role="dialog" aria-modal="true" aria-label="New badge" className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 text-center shadow-xl">
+      <div className="flex justify-center gap-3">{badges.map(b => <BadgeIcon key={b.id} badge={b} />)}</div>
+      <h2 className="mt-4 text-2xl font-extrabold">{badges.length === 1 ? 'New badge' : `${badges.length} new badges`}</h2>
+      <p className="mt-1 font-bold text-brand-strong">{badges.map(b => b.name).join(' · ')}</p>
+      <Button className="mt-5" onClick={onClose} autoFocus>Nice</Button>
+    </div>
+  </div>
+}
+
+/** Event photos ("memories"), shown on the main profile page. Adding one can earn a badge. */
+export function Memories() {
+  const [photos, setPhotos] = useState<CheckIn[] | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [celebrate, setCelebrate] = useState<Badge[]>([])
+  const [error, setError] = useState('')
+  const loadPhotos = () => api<CheckIn[]>('/api/badges/checkins').then(setPhotos).catch(e => setError(e.message))
+  useEffect(() => {
+    void loadPhotos()
+    const reload = () => { void loadPhotos() }
+    window.addEventListener('nexus-badges-updated', reload)
+    return () => window.removeEventListener('nexus-badges-updated', reload)
+  }, [])
+  async function remove(id: number) {
+    try { await api(`/api/badges/checkins/${id}`, { method: 'DELETE' }); window.dispatchEvent(new Event('nexus-badges-updated')) } catch (e) { setError((e as Error).message) }
+  }
+  return <div>
+    {error && <Alert>{error}</Alert>}
     <section aria-labelledby="memories-h">
-      <h2 id="memories-h" className="mb-3 text-sm font-extrabold uppercase tracking-wide text-muted">Memories</h2>
-      {photos.length === 0 ? <button type="button" onClick={() => setAdding(true)} className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line p-8 text-muted hover:bg-surface-2">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 id="memories-h" className="text-lg font-semibold">Memories</h2>
+        {!!photos?.length && <Button variant="secondary" className="h-9 px-3" onClick={() => setAdding(true)}><ImagePlus size={16} aria-hidden />Add photo</Button>}
+      </div>
+      {photos === null ? <p className="text-sm text-muted">Loading…</p> : photos.length === 0 ? <button type="button" onClick={() => setAdding(true)} className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line p-8 text-muted hover:bg-surface-2">
         <ImagePlus className="size-8 text-brand-strong" aria-hidden /><span className="font-bold text-fg">Add your first event photo</span>
       </button> : <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map(p => <li key={p.id} className="group relative overflow-hidden rounded-2xl border border-line bg-surface">
@@ -109,15 +139,8 @@ export function Badges() {
       </ul>}
     </section>
 
-    {adding && <AddPhoto onClose={() => setAdding(false)} onDone={(fresh) => { setAdding(false); setCelebrate(fresh); void loadPhotos(); window.dispatchEvent(new Event('nexus-badges-updated')) }} />}
-    {celebrate.length > 0 && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={e => e.target === e.currentTarget && setCelebrate([])}>
-      <div role="dialog" aria-modal="true" aria-label="New badge" className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 text-center shadow-xl">
-        <div className="flex justify-center gap-3">{celebrate.map(b => <BadgeIcon key={b.id} badge={b} />)}</div>
-        <h2 className="mt-4 text-2xl font-extrabold">{celebrate.length === 1 ? 'New badge' : `${celebrate.length} new badges`}</h2>
-        <p className="mt-1 font-bold text-brand-strong">{celebrate.map(b => b.name).join(' · ')}</p>
-        <Button className="mt-5" onClick={() => setCelebrate([])} autoFocus>Nice</Button>
-      </div>
-    </div>}
+    {adding && <AddPhoto onClose={() => setAdding(false)} onDone={(fresh) => { setAdding(false); setCelebrate(fresh); window.dispatchEvent(new Event('nexus-badges-updated')) }} />}
+    <Celebration badges={celebrate} onClose={() => setCelebrate([])} />
   </div>
 }
 

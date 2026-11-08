@@ -64,6 +64,10 @@ export const SOURCE_LABEL: Record<NonNullable<NexusEvent['source']>, string> = {
 
 export type Relation = 'following' | 'connection'
 
+/** "Wants company" on an event, from the viewer's side (GET /api/buddies/wanted).
+ *  Friends who asked are named; anyone else is only a count. */
+export type Company = { eventId: string; friends: { id: number; name: string }[]; others: number }
+
 export type Person = {
   id: string
   name: string

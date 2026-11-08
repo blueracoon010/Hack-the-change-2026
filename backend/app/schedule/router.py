@@ -135,7 +135,8 @@ def _fitting_events(session: Session, user_id: int, windows: list[dict], limit_p
             if ws <= s and min(e, s + timedelta(hours=3)) <= we:
                 out.append({"window": i, "id": str(ev.id), "title": ev.title, "start": _iso(s), "end": _iso(e),
                             "venue": ev.venue_name or ev.address or "", "categories": [c for c in ev.categories.split(",") if c],
-                            "price": ev.price or "", "indoor": ev.indoor})
+                            "price": ev.price or "", "indoor": ev.indoor, "address": ev.address or "",
+                            "position": {"lat": ev.lat, "lng": ev.lon} if ev.lat is not None and ev.lon is not None else None})
                 n += 1
                 if n >= limit_per_window:
                     break

@@ -8,7 +8,7 @@ export type Prefs = {
   reduceMotion: boolean
 }
 
-const DEFAULTS: Prefs = { theme: 'system', textSize: 'md', highContrast: false, reduceMotion: false }
+const DEFAULTS: Prefs = { theme: 'dark', textSize: 'md', highContrast: false, reduceMotion: false }
 const KEY = 'display_prefs'
 
 const PrefsContext = createContext<{ prefs: Prefs; update: (p: Partial<Prefs>) => void } | null>(null)
@@ -24,7 +24,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const apply = () => {
-      root.classList.toggle('dark', prefs.theme === 'dark' || (prefs.theme === 'system' && media.matches))
+      root.classList.add('dark') // Nexus is dark-only
       root.classList.toggle('hc', prefs.highContrast)
       root.classList.toggle('reduce-motion', prefs.reduceMotion)
       root.dataset.text = prefs.textSize

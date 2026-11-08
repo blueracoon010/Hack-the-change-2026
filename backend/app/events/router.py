@@ -16,7 +16,7 @@ from ..db import get_session
 from ..models import Follow, User, BuddyPreference
 from ..security import get_current_user
 from .geocode import geocode
-from .models import Event, EventRsvp, EventSave, SyncRun, utcnow
+from .models import BuddyPair, Event, EventRsvp, EventSave, SyncRun, utcnow
 from .schemas import Camel, CommunityEventIn, EventOut, LatLng, RsvpIn, iso_utc, to_utc
 from .sources import SOURCES
 from .sync import sync_all
@@ -349,6 +349,7 @@ def delete_event(event_id: int, user: User = Depends(get_current_user), session:
     e = session.get(Event, event_id)
     if not e or e.created_by != user.id:
         raise HTTPException(404, "Event not found or not yours")
+    session.exec(delete(BuddyPair).where(BuddyPair.event_id == event_id))
     session.exec(delete(EventRsvp).where(EventRsvp.event_id == event_id))
     session.exec(delete(EventSave).where(EventSave.event_id == event_id))
     from ..badges.router import detach_checkins
@@ -377,6 +378,8 @@ def rsvp(event_id: int, body: RsvpIn, user: User = Depends(get_current_user), se
             ids.discard(event_id)
         pref.event_ids_json = json.dumps(sorted(ids))
         session.add(pref)
+    if not body.looking_for_buddy:
+        session.exec(delete(BuddyPair).where(BuddyPair.event_id == event_id, BuddyPair.requester_id == user.id))
     session.add(r)
     session.commit()
     return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy}, user.id, None)
@@ -388,7 +391,9 @@ def cancel_rsvp(event_id: int, user: User = Depends(get_current_user), session: 
     if not e or not can_see(e, user.id, session):
         raise HTTPException(404, "Event not found")
     r = session.get(EventRsvp, (event_id, user.id))
+    session.exec(delete(BuddyPair).where(BuddyPair.event_id == event_id,
+                                         (BuddyPair.requester_id == user.id) | (BuddyPair.companion_id == user.id)))
     if r:
         session.delete(r)
-        session.commit()
+    session.commit()
     return to_out(e, rsvp_counts(session, [event_id]), {}, user.id, None)

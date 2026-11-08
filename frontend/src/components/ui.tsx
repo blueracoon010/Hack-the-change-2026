@@ -1,6 +1,6 @@
 // Reusable UI building blocks. Use these instead of styling from scratch so every page looks consistent.
-import { useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
-import { AlertCircle, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
+import { AlertCircle, Eye, EyeOff, Loader2, RefreshCw, X } from 'lucide-react'
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
@@ -11,14 +11,14 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ variant = 'primary', loading, className, children, disabled, ...rest }: ButtonProps) {
   const styles = {
-    primary: 'bg-brand text-on-brand ring-1 ring-inset ring-brand-edge hover:bg-brand-hover',
-    secondary: 'bg-surface text-fg border border-line hover:bg-surface-2',
+    primary: 'bg-brand text-on-brand ring-1 ring-inset ring-[var(--edge)] hover:bg-brand-hover',
+    secondary: 'bg-surface text-fg ring-1 ring-inset ring-[var(--edge)] hover:bg-surface-2',
     ghost: 'text-fg hover:bg-surface-2',
     danger: 'bg-danger text-on-danger hover:brightness-95',
   }[variant]
   return (
     <button
-      className={cx('inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-bold transition disabled:opacity-60 disabled:cursor-not-allowed', styles, className)}
+      className={cx('inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed', styles, className)}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...rest}
@@ -30,7 +30,7 @@ export function Button({ variant = 'primary', loading, className, children, disa
 }
 
 export function Card({ className, children, as: Tag = 'section', ...rest }: { className?: string; children: ReactNode; as?: 'section' | 'div' | 'article'; 'aria-labelledby'?: string }) {
-  return <Tag className={cx('rounded-2xl border border-line bg-surface p-5 shadow-sm', className)} {...rest}>{children}</Tag>
+  return <Tag className={cx('rounded-2xl border border-line bg-surface p-5', className)} {...rest}>{children}</Tag>
 }
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string }
@@ -73,11 +73,12 @@ export function Alert({ children }: { children: ReactNode }) {
   )
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+/** Page title. `accent` (the key words) is set in the display face, Bagel Fat One. */
+export function PageHeader({ title, accent, subtitle, actions }: { title: string; accent?: string; subtitle?: string; actions?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
+        <h1 className="text-[1.9rem] font-semibold tracking-tight sm:text-[2.2rem]">{title}{accent && <> <span className="font-brand text-[1.08em]">{accent}</span></>}</h1>
         {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
       </div>
       {actions}
@@ -151,6 +152,25 @@ export function Switch({ label, description, checked, onChange }: { label: strin
       </button>
     </div>
   )
+}
+
+/** Centered dialog: Escape or a click outside closes it; focus starts on the first field. */
+export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    const first = ref.current?.querySelector<HTMLElement>('input, select, textarea') ?? ref.current?.querySelector<HTMLElement>('button')
+    first?.focus()
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={e => e.target === e.currentTarget && onClose()}>
+    <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-surface p-6 shadow-xl">
+      <div className="mb-4 flex items-center justify-between gap-2"><h2 className="text-lg font-semibold">{title}</h2>
+        <button type="button" onClick={onClose} className="rounded-lg p-1 text-muted hover:bg-surface-2" aria-label="Close"><X size={20} /></button></div>
+      {children}
+    </div>
+  </div>
 }
 
 export { cx }

@@ -4,12 +4,16 @@ import { api } from './api'
 
 export const interests = ['Walking & outdoors', 'Books', 'Art & culture', 'Music', 'Sports', 'Coffee & conversation']
 export const groups = [
-  { id: 'walk', name: 'Bow River Walking Club', interest: 'Walking & outdoors', icon: '☀', description: 'Fresh air, easy-paced walks, and a friendly hello. All paces welcome.', members: 48, vibe: 'Small groups · Outdoors', channels: ['introductions', 'weekend-walks', 'general'] },
-  { id: 'books', name: 'One More Chapter', interest: 'Books', icon: '▤', description: 'A relaxed book circle. Come for the stories, stay for the conversation.', members: 32, vibe: 'Quiet & relaxed · Indoors', channels: ['introductions', 'what-we-are-reading', 'general'] },
-  { id: 'art', name: 'Creative Calgary', interest: 'Art & culture', icon: '✦', description: 'Gallery visits, sketchbook afternoons, and trying something new together.', members: 65, vibe: 'Beginner friendly · Creative', channels: ['introductions', 'creative-corner', 'general'] },
-  { id: 'coffee', name: 'New Here, Together', interest: 'Coffee & conversation', icon: '☕', description: 'New to Calgary or simply looking for a fresh start? Pull up a chair.', members: 54, vibe: 'Newcomers welcome · Casual', channels: ['introductions', 'coffee-plans', 'general'] },
+  { id: 'walk', name: 'Bow River Walking Club', interest: 'Walking & outdoors', icon: 'walk', description: 'Fresh air, easy-paced walks, and a friendly hello. All paces welcome.', members: 48, vibe: 'Small groups · Outdoors', channels: ['introductions', 'weekend-walks', 'general'] },
+  { id: 'books', name: 'One More Chapter', interest: 'Books', icon: 'books', description: 'A relaxed book circle. Come for the stories, stay for the conversation.', members: 32, vibe: 'Quiet & relaxed · Indoors', channels: ['introductions', 'what-we-are-reading', 'general'] },
+  { id: 'art', name: 'Creative Calgary', interest: 'Art & culture', icon: 'art', description: 'Gallery visits, sketchbook afternoons, and trying something new together.', members: 65, vibe: 'Beginner friendly · Creative', channels: ['introductions', 'creative-corner', 'general'] },
+  { id: 'coffee', name: 'New Here, Together', interest: 'Coffee & conversation', icon: 'coffee', description: 'New to Calgary or simply looking for a fresh start? Pull up a chair.', members: 54, vibe: 'Newcomers welcome · Casual', channels: ['introductions', 'coffee-plans', 'general'] },
 ]
-export type Group = typeof groups[number]
+/** A community: one of the built-ins above, or one someone created (custom: true, details from the server). */
+export type Group = {
+  id: string; name: string; interest: string; icon: string; description: string; channels: string[]
+  vibe?: string; members?: number; custom?: boolean; visibility?: 'public' | 'private'; mine?: boolean; owner?: string
+}
 export type LocalProfile = { name: string; bio: string; neighbourhood: string; social: string; interests: string[] }
 export type Message = { id: string; group: string; channel: string; name: string; text: string; time: string }
 export type CommunityState = { profile: LocalProfile; joined: string[]; messages: Message[] }
@@ -37,8 +41,9 @@ export function useCommunityState() {
 }
 
 /** Group membership + real member counts from the shared database (GET /api/community/groups). */
-export type GroupState = { id: string; members: number; joined: boolean }
-export type ChatMessage = { id: number; user_id: number; name: string; text: string; time: string; mine: boolean }
+export type GroupState = { id: string; members: number; joined: boolean } & Partial<Omit<Group, 'members'>>
+export type Relation = 'me' | 'friend' | 'following' | 'requested' | 'follows-you' | 'none'
+export type ChatMessage = { id: number; user_id: number; name: string; text: string; time: string; mine: boolean; relation?: Relation }
 
 export function useCommunityGroups() {
   const [state, setState] = useState<Record<string, GroupState>>({})
@@ -56,5 +61,13 @@ export function useCommunityGroups() {
     await reload()
   }
   const joined = Object.values(state).filter(g => g.joined).map(g => g.id)
-  return { state, joined, loaded, error, reload, setMembership }
+  // Built-ins first, then communities people created (newest first, as the server sends them).
+  const all: Group[] = [
+    ...(groups as Group[]),
+    ...Object.values(state).filter(g => g.custom).map(g => ({
+      id: g.id, name: g.name ?? 'Community', interest: g.interest ?? '', icon: g.icon ?? 'users', description: g.description ?? '',
+      channels: g.channels ?? ['general'], custom: true, visibility: g.visibility, mine: g.mine, owner: g.owner,
+    })),
+  ]
+  return { state, joined, all, loaded, error, reload, setMembership }
 }

@@ -37,6 +37,7 @@ class Settings:
     smtp_password = os.getenv("SMTP_PASSWORD", "")
     mail_from = os.getenv("MAIL_FROM", "") or os.getenv("SMTP_USER", "")
     password_reset_minutes = int(os.getenv("PASSWORD_RESET_MINUTES", "30"))
+    reminder_check_minutes = int(os.getenv("REMINDER_CHECK_MINUTES", "15"))  # 0 = never send event reminders
     geocoder_user_agent = os.getenv("GEOCODER_USER_AGENT", "CodeTheChangeYYC-hackathon-events-map/0.1")
 
 

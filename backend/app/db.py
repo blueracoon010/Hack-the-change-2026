@@ -36,6 +36,8 @@ def init_db() -> None:
     from .events import models as event_models  # noqa: F401
     from .schedule import models as schedule_models  # noqa: F401
     from .badges import models as badge_models  # noqa: F401
+    from .wellbeing import models as wellbeing_models  # noqa: F401
+    from .dm import models as dm_models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
     _add_missing_columns()

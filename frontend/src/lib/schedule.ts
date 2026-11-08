@@ -6,7 +6,7 @@ export type Kind = 'busy' | 'work' | 'class' | 'me_time' | 'open' | 'event'
 export type Busy = { start: string; end: string; kind: Kind; source: string; id?: number; label?: string; repeat?: boolean; eventId?: string }
 export type Person = { id: number; name: string; me: boolean; sharing: boolean; busy: Busy[] }
 export type FreeWindow = { start: string; end: string; minutes: number; preferred: boolean }
-export type Fit = { window: number; id: string; title: string; start: string; end: string; venue: string; categories: string[]; price: string; indoor: boolean }
+export type Fit = { window: number; id: string; title: string; start: string; end: string; venue: string; categories: string[]; price: string; indoor: boolean; address?: string; position?: { lat: number; lng: number } | null }
 export type Week = { start: string; days: string[]; people: Person[]; together: FreeWindow[]; fits: Fit[]; calendarLinked: boolean; freeHoursTogether: number }
 export type Friend = { id: number; name: string; sharing: boolean }
 export type CalendarLink = { provider: string; lastSynced: string | null; error: string | null; busyCount: number }
@@ -26,11 +26,11 @@ export const BLOCKABLE: Kind[] = ['busy', 'work', 'class', 'me_time', 'open']
 /** Lane colours (you first, then friends), from the five brand colours and blends of them; `ink` is the readable text colour on top.
  *  Yellow is left out on purpose: it means "everyone is free". */
 export const PERSON_COLORS = [
-  { bg: 'var(--fg)', ink: 'var(--bg)' },          // you: navy (warm white in dark mode)
-  { bg: 'var(--brand-soft)', ink: 'var(--fg)' },  // pastel blue
-  { bg: '#5F6276', ink: '#fff' },                 // slate: navy 70% on white
-  { bg: 'var(--mustard)', ink: 'var(--navy)' },
-  { bg: '#3A3E5C', ink: '#fff' },                 // navy 88% on white
+  { bg: 'var(--fg)', ink: 'var(--bg)' },          // you: ink (cream in dark mode)
+  { bg: '#FE8653', ink: '#2B1A12' },              // palette coral
+  { bg: '#8DD39A', ink: '#2B1A12' },              // palette green
+  { bg: '#FFAB4B', ink: '#2B1A12' },              // palette orange
+  { bg: '#5A2614', ink: '#fff' },                 // deep coral-brown
 ]
 
 export const DAY_START_H = 8

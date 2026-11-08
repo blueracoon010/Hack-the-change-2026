@@ -81,5 +81,5 @@ export const chartTheme = {
     contentStyle: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, color: 'var(--fg)' },
     labelStyle: { color: 'var(--muted)', fontWeight: 700 },
   },
-  colors: ['#EFAC29', '#1B1F3B', '#B5D2FF', '#F6D189', '#5F6276'],
+  colors: ['#FE8653', '#8DD39A', '#FFAB4B', '#F9CF48', '#5A2614'],
 }

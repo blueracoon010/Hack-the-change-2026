@@ -8,6 +8,7 @@ import { Button, Card, ErrorState, Loading } from '../components/ui'
 import { api, ApiError } from '../lib/api'
 import { fmtWhen } from '../lib/nexus'
 import { BadgeIcon, type Badge } from '../components/Badges'
+import { UserAvatar } from '../components/UserAvatar'
 
 type Person = {
   id: number; name: string; joined: string; is_me: boolean; private: boolean
@@ -59,7 +60,7 @@ export default function PersonProfile() {
         <div className="h-24 bg-brand-tint sm:h-28" aria-hidden="true" />
         <div className="px-5 pb-6 sm:px-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="-mt-10 grid size-24 place-items-center rounded-3xl border-4 border-surface bg-brand text-4xl font-extrabold text-on-brand shadow-sm" aria-hidden="true">{person.name[0]?.toUpperCase()}</div>
+            <UserAvatar id={person.id} name={person.name} className="-mt-10 size-24 border-4 border-surface text-4xl" />
             {person.is_me
               ? <Link to="/profile" className="rounded-full border border-line px-4 py-2 text-sm font-bold hover:bg-surface-2">Edit my profile</Link>
               : <Button variant={person.is_following || person.requested ? 'secondary' : 'primary'} loading={busy} onClick={toggleFollow}

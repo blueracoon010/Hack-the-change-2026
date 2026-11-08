@@ -7,7 +7,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { CircleMarker, MapContainer, Marker, TileLayer, useMap as useLeafletMap, useMapEvents } from 'react-leaflet'
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID } from '../../config/app'
-import { CALGARY_CENTER, type LatLng, type NexusEvent, type Person } from '../../lib/nexus'
+import { CALGARY_CENTER, type Company, type LatLng, type NexusEvent, type Person } from '../../lib/nexus'
 import { EventPin, PersonPin, YouPin } from './Pins'
 
 export type Selection = { kind: 'event' | 'person'; id: string } | null
@@ -19,6 +19,7 @@ export type MapProps = {
   onSelect: (s: Selection) => void
   /** In "people" mode, events the selected person is going to stay bright; the rest are dimmed. */
   highlightEventIds?: Set<string>
+  company?: Record<string, Company> // friend faces / counts for events where someone wants company
   userPos: LatLng | null
   focus: LatLng | null
   distanceOrigin?: LatLng | null
@@ -52,7 +53,7 @@ function PanTo({ focus }: { focus: LatLng | null }) {
   return null
 }
 
-function GoogleNexusMap({ events, people, selected, onSelect, highlightEventIds, userPos, focus, distanceOrigin, onMapClick }: MapProps) {
+function GoogleNexusMap({ events, people, selected, onSelect, highlightEventIds, company, userPos, focus, distanceOrigin, onMapClick }: MapProps) {
   const dark = useIsDark()
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
@@ -76,7 +77,7 @@ function GoogleNexusMap({ events, people, selected, onSelect, highlightEventIds,
           return (
             <AdvancedMarker key={e.id} position={e.position} title={e.title} zIndex={isSel ? 50 : 10}
               onClick={(event) => { event.stop(); onSelect({ kind: 'event', id: e.id }) }}>
-              <EventPin event={e} selected={isSel} dimmed={highlightEventIds && !highlightEventIds.has(e.id)} />
+              <EventPin event={e} company={company?.[e.id]} selected={isSel} dimmed={highlightEventIds && !highlightEventIds.has(e.id)} />
             </AdvancedMarker>
           )
         })}
@@ -125,7 +126,7 @@ function LeafletFocus({ focus, onBackground }: { focus: LatLng | null; onBackgro
   return null
 }
 
-function LeafletNexusMap({ events, people, selected, onSelect, highlightEventIds, userPos, focus, distanceOrigin, onMapClick }: MapProps) {
+function LeafletNexusMap({ events, people, selected, onSelect, highlightEventIds, company, userPos, focus, distanceOrigin, onMapClick }: MapProps) {
   return (
     <MapContainer center={focus ?? CALGARY_CENTER} zoom={12} className="size-full" zoomControl attributionControl>
       <TileLayer url={TILE_URL} attribution={ATTRIBUTION} maxZoom={19} />
@@ -133,9 +134,9 @@ function LeafletNexusMap({ events, people, selected, onSelect, highlightEventIds
       {events.map((e) => {
         const isSel = selected?.kind === 'event' && selected.id === e.id
         return (
-          <Marker key={`${e.id}-${isSel}-${highlightEventIds?.has(e.id) ?? 'all'}`} position={e.position} title={e.title} bubblingMouseEvents={false}
+          <Marker key={`${e.id}-${isSel}-${highlightEventIds?.has(e.id) ?? 'all'}-${company?.[e.id]?.friends.map(f => f.id).join('.') ?? ''}-${company?.[e.id]?.others ?? 0}`} position={e.position} title={e.title} bubblingMouseEvents={false}
             zIndexOffset={isSel ? 1000 : 0}
-            icon={icon(<EventPin event={e} selected={isSel} dimmed={highlightEventIds && !highlightEventIds.has(e.id)} />, `Event: ${e.title}`, 36, 46)}
+            icon={icon(<EventPin event={e} company={company?.[e.id]} selected={isSel} dimmed={highlightEventIds && !highlightEventIds.has(e.id)} />, `Event: ${e.title}`, 36, 46)}
             eventHandlers={{ click: () => onSelect({ kind: 'event', id: e.id }) }} />
         )
       })}
@@ -148,7 +149,7 @@ function LeafletNexusMap({ events, people, selected, onSelect, highlightEventIds
         )
       })}
       {userPos && <Marker position={userPos} title="You are here" icon={icon(<YouPin />, 'You are here', 20, 20, 10)} interactive={false} />}
-      {distanceOrigin && <CircleMarker center={distanceOrigin} radius={9} interactive={false} pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#EFAC29', fillOpacity: 1 }} />}
+      {distanceOrigin && <CircleMarker center={distanceOrigin} radius={9} interactive={false} pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#FE8653', fillOpacity: 1 }} />}
     </MapContainer>
   )
 }

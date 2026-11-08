@@ -47,6 +47,15 @@ class EventRsvp(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class BuddyPair(SQLModel, table=True):
+    """ "I'll go with you": a friend answered someone's buddy request for an event."""
+
+    event_id: int = Field(foreign_key="event.id", primary_key=True)
+    requester_id: int = Field(foreign_key="user.id", primary_key=True)  # asked for a buddy
+    companion_id: int = Field(foreign_key="user.id", primary_key=True, index=True)  # said they'll go with them
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class GeocodeCache(SQLModel, table=True):
     """Every address we have looked up, so each one hits Nominatim only once (their usage policy requires caching)."""
 
@@ -67,6 +76,15 @@ class SyncRun(SQLModel, table=True):
     skipped_no_location: int = 0
     error: str | None = None
     finished_at: datetime = Field(default_factory=utcnow)
+
+
+class ReminderSent(SQLModel, table=True):
+    """ "Remind me the day before": one row per reminder email sent, so nobody is reminded twice.
+    Plain ids (no foreign keys) so deleting an event or an account never trips over old rows."""
+
+    event_id: int = Field(primary_key=True)
+    user_id: int = Field(primary_key=True)
+    sent_at: datetime = Field(default_factory=utcnow)
 
 
 class EventSave(SQLModel, table=True):

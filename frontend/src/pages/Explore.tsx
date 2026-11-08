@@ -2,20 +2,22 @@
 // card for details, RSVP, "find a buddy", and which of your friends are going.
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
-  ArrowLeft, Bell, BellRing, Bookmark, Check, Clock, ExternalLink, Footprints, LocateFixed,
+  ArrowLeft, Bell, BellRing, Bookmark, Check, Clock, ExternalLink, HandHeart, LocateFixed,
   Lock, MapPin, Search, Sparkles, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
-import { EventBuddies } from '../components/BuddyPreferences'
+import { EventCompany } from '../components/BuddyPreferences'
+import { useAuth } from '../context/AuthContext'
 import { DayPicker } from '../components/DayPicker'
 import { cx, Segmented } from '../components/ui'
 import { useApi } from '../hooks/useApi'
+import { popCard } from '../lib/pop'
 import { describe, forecastFor, useWeather, weatherTip } from '../hooks/useWeather'
 import { api } from '../lib/api'
 import {
   calgaryDay, CALGARY_CENTER, CATEGORIES, distanceKm, fmtDistance, fmtSpan, fmtWhen, fromApi, initials, SOURCE_LABEL, VIBES,
-  type ApiEvent, type Category, type LatLng, type NexusEvent, type Person, type Vibe,
+  type ApiEvent, type Category, type Company, type LatLng, type NexusEvent, type Person, type Vibe,
 } from '../lib/nexus'
 
 type When = 'today' | 'week' | 'day'
@@ -30,9 +32,11 @@ const neighbourhoodOf = (host: string) => host.replace(/\s+(Creekside\s+)?(Commu
 const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.venue : e.venue || neighbourhoodOf(e.host))
 
 export default function Explore() {
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [cats, setCats] = useState<Set<Category>>(new Set())
   const [friendsOnly, setFriendsOnly] = useState(false) // only events hosted by people you follow
+  const [companyOnly, setCompanyOnly] = useState(false) // only events where someone wants company
   const [vibe, setVibe] = useState<Vibe | 'all'>('all')
   const [when, setWhen] = useState<When>('week')
   const [day, setDay] = useState<string | null>(null) // when === 'day': the Calgary day picked in the calendar
@@ -77,6 +81,9 @@ export default function Explore() {
   // People you follow, so an event can show which friends are going (GET /api/social/map-people).
   const { data: peopleData } = useApi<{ people: Person[]; hidden: number }>('/api/social/map-people', { refreshMs: 5 * 60_000 })
   const allPeople = useMemo(() => peopleData?.people ?? [], [peopleData])
+  // "Wants company": friends who asked for a buddy (named) and everyone else (a count), per event.
+  const { data: wantedData, reload: reloadWanted } = useApi<Company[]>(user ? '/api/buddies/wanted' : null, { refreshMs: 60_000 })
+  const company = useMemo(() => Object.fromEntries((wantedData ?? []).map((w) => [w.eventId, w])) as Record<string, Company>, [wantedData])
   const setHas = (set: SetToggle, id: string, on: boolean) =>
     set((prev) => { const n = new Set(prev); if (on) n.add(id); else n.delete(id); return n })
 
@@ -97,6 +104,7 @@ export default function Explore() {
       setRsvpError((e as Error).message)
     } finally {
       reloadEvents() // real going / buddy counts
+      reloadWanted()
     }
   }
   const rsvpEvent = (id: string) => {
@@ -120,6 +128,7 @@ export default function Explore() {
     const weekOut = new Date(now); weekOut.setDate(now.getDate() + 7)
     return allEvents
       .filter((e) => !friendsOnly || e.byFollowing)
+      .filter((e) => !companyOnly || (company[e.id] ? company[e.id].friends.length + company[e.id].others > 0 : e.lookingForBuddy > (e.meLookingForBuddy ? 1 : 0)))
       .filter((e) => cats.size === 0 || e.categories.some((c) => cats.has(c)))
       .filter((e) => vibe === 'all' || e.vibe === vibe)
       .filter((e) => when === 'week' ? e.start <= weekOut : happensOn(e, when === 'day' && day ? day : calgaryDay(now)))
@@ -127,7 +136,7 @@ export default function Explore() {
       .map((e) => ({ ...e, km: distanceKm(origin, e.position) }))
       .filter((e) => radiusKm === null || e.km <= radiusKm)
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
-  }, [allEvents, friendsOnly, cats, vibe, when, day, q, origin, sort, radiusKm])
+  }, [allEvents, friendsOnly, companyOnly, company, cats, vibe, when, day, q, origin, sort, radiusKm])
 
   const selectedEvent = selected?.kind === 'event' ? allEvents.find((e) => e.id === selected.id) ?? null : null
 
@@ -157,13 +166,13 @@ export default function Explore() {
     if (!focusEventId) return
     const ev = allEvents.find((e) => e.id === focusEventId)
     if (!ev) return
-    setQuery(''); setFriendsOnly(false); setCats(new Set()); setVibe('all'); setWhen('day'); setDay(calgaryDay(ev.start)); setRadiusKm(null)
+    setQuery(''); setFriendsOnly(false); setCompanyOnly(false); setCats(new Set()); setVibe('all'); setWhen('day'); setDay(calgaryDay(ev.start)); setRadiusKm(null)
     select({ kind: 'event', id: ev.id }, ev.position)
     navigate('.', { replace: true, state: null })
   }, [focusEventId, allEvents]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtersActive = friendsOnly || cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
-  const resetFilters = () => { setFriendsOnly(false); setCats(new Set()); setVibe('all'); setWhen('week'); setDay(null); setRadiusKm(null) }
+  const filtersActive = friendsOnly || companyOnly || cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
+  const resetFilters = () => { setFriendsOnly(false); setCompanyOnly(false); setCats(new Set()); setVibe('all'); setWhen('week'); setDay(null); setRadiusKm(null) }
   const pickWhen = (w: When) => { setWhen(w); if (w !== 'day') setDay(null) }
   // Events per Calgary day, for the dots in the calendar.
   const dayCounts = useMemo(() => {
@@ -178,28 +187,25 @@ export default function Explore() {
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 md:p-6 lg:h-full">
         {/* Heading */}
         <div>
-          <p className="text-sm font-semibold text-muted">Calgary · your neighbourhood</p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight">What’s on around you</h1>
+          <h1 className="text-[1.9rem] font-semibold tracking-tight sm:text-[2.2rem]">What’s on <span className="font-brand text-[1.08em]">around you</span></h1>
+          <p className="mt-0.5 text-sm text-muted">Events across Calgary, from Ticketmaster, Meetup, the City and your neighbours.</p>
         </div>
 
         {/* Search + actions */}
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative min-w-56 flex-1">
             <span className="sr-only">Search events</span>
-            <Search className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-muted" aria-hidden />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
             <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder="Search events, hosts, venues…"
-              className="w-full rounded-full border border-line bg-surface py-2.5 pl-11 pr-4 shadow-sm outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/15" />
+              className="h-10 w-full rounded-xl border border-line bg-surface pl-10 pr-4 text-sm outline-none transition placeholder:text-muted focus:border-brand-edge focus:ring-4 focus:ring-brand/30" />
           </label>
           <button type="button" onClick={locate} disabled={locating} aria-label="Centre the map on my location"
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2.5 font-bold shadow-sm transition hover:bg-surface-2 disabled:opacity-60">
-            <LocateFixed className={cx('size-4.5', locating && 'animate-spin')} aria-hidden /> Near me
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 text-sm font-medium transition hover:bg-surface-2 disabled:opacity-60">
+            <LocateFixed className={cx('size-4', locating && 'animate-spin')} aria-hidden /> Near me
           </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-bold">
-            <MapPin className="size-4 text-brand-strong" aria-hidden /> Distance
+          <label className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-line bg-surface pl-3.5 pr-1 text-sm font-medium">
+            <MapPin className="size-4 text-muted" aria-hidden /><span className="sr-only">Distance</span>
             <select value={radiusKm ?? 'all'} onChange={e => { setRadiusKm(e.target.value === 'all' ? null : Number(e.target.value)); setSelected(null) }} className="min-h-8 rounded-lg bg-surface px-2 text-fg">
               <option value="all">Any distance</option>
               {[1, 5, 10, 25, 50, 100].map(km => <option key={km} value={km}>Within {km} km</option>)}
@@ -220,9 +226,15 @@ export default function Explore() {
           <>
               <button type="button" aria-pressed={friendsOnly} onClick={() => setFriendsOnly((v) => !v)}
                 title="Events hosted by people you follow"
-                className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition',
-                  friendsOnly ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-muted hover:border-fg/30 hover:text-fg')}>
+                className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition',
+                  friendsOnly ? 'border-[var(--edge)] bg-fg text-bg' : 'border-[var(--edge)] bg-surface text-fg hover:border-fg/30 hover:text-fg')}>
                 <Users className="size-4" aria-hidden /> Friends’ events
+              </button>
+              <button type="button" aria-pressed={companyOnly} onClick={() => setCompanyOnly((v) => !v)}
+                title="Events where a friend or someone nearby is looking for a buddy"
+                className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition',
+                  companyOnly ? 'border-[var(--edge)] bg-fg text-bg' : 'border-[var(--edge)] bg-surface text-fg hover:border-fg/30 hover:text-fg')}>
+                <HandHeart className="size-4" aria-hidden /> Wants company
               </button>
               <Divider />
               <div role="group" aria-label="Event type" className="flex shrink-0 gap-2">
@@ -233,8 +245,8 @@ export default function Explore() {
                   return (
                     <button key={c} type="button" aria-pressed={on}
                       onClick={() => setCats((prev) => { const n = new Set(prev); if (n.has(c)) n.delete(c); else n.add(c); return n })}
-                      className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition',
-                        on ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-muted hover:border-fg/30 hover:text-fg')}>
+                      className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition',
+                        on ? 'border-[var(--edge)] bg-fg text-bg' : 'border-[var(--edge)] bg-surface text-fg hover:border-fg/30 hover:text-fg')}>
                       <Icon className="size-4" aria-hidden />
                       {meta.label}
                     </button>
@@ -261,20 +273,16 @@ export default function Explore() {
         {rsvpError && <p role="alert" className="text-sm text-danger">{rsvpError}</p>}
         {/* Map card | cards */}
         <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <section aria-labelledby="map-title" className="flex h-[60vh] min-h-80 flex-col rounded-3xl border border-line bg-surface p-4 md:p-5 lg:h-auto lg:min-h-0">
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-muted">Nearby</p>
-                <h2 id="map-title" className="text-2xl font-extrabold tracking-tight">Map view</h2>
-              </div>
-              <p className="text-sm font-semibold text-muted">
-                Numbers show attendees looking for a buddy
-              </p>
-            </div>
+          <section aria-labelledby="map-title" className="flex h-[60vh] min-h-80 flex-col lg:h-auto lg:min-h-0">
+            <h2 id="map-title" className="sr-only">Map of events</h2>
             <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-line">
+              <p className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-md bg-surface/90 px-2 py-1 text-xs text-muted shadow-sm">
+                <span className="mr-1 inline-block size-2.5 rounded-full border-2 border-mustard bg-white align-[-1px]" aria-hidden /> Friend wants company
+                <span className="mx-1.5" aria-hidden>·</span>Number = others looking for a buddy</p>
               <NexusMap
                 events={events}
                 people={[]}
+                company={company}
                 selected={selected}
                 onSelect={(s) => setSelected(s)}
                 userPos={userPos}
@@ -290,6 +298,7 @@ export default function Explore() {
               <EventDetail event={selectedEvent} km={distanceKm(origin, selectedEvent.position)} onClose={() => setSelected(null)}
                 going={rsvps.has(selectedEvent.id)} onRsvp={() => rsvpEvent(selectedEvent.id)}
                 buddy={buddyAsks.has(selectedEvent.id)} onBuddy={() => buddyEvent(selectedEvent.id)}
+                onCompanyChange={() => { reloadEvents(); reloadWanted() }}
                 reminder={reminders.has(selectedEvent.id)} onReminder={() => toggleReminder(selectedEvent.id)}
                 saved={saved.has(selectedEvent.id)} onSave={() => toggleSaved(selectedEvent.id)} people={allPeople}
                 backLabel="All events"
@@ -297,16 +306,16 @@ export default function Explore() {
             ) : (
               <>
                 <div className="mb-3 flex items-center justify-between gap-2 px-1">
-                  <p className="font-bold text-muted" aria-live="polite">
+                  <p className="text-sm font-medium text-muted" aria-live="polite">
                     {`${count} event${count === 1 ? '' : 's'}`}
                     {mapOrigin ? ' near selected point' : userPos ? ' near you' : ' in Calgary'}
                   </p>
                   <Segmented label="Sort events" value={sort} onChange={setSort} options={[{ value: 'near', label: 'Nearest' }, { value: 'soon', label: 'Soonest' }]} />
                 </div>
                 <ul aria-label="Events" className="space-y-4 pb-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-                  {events.map((e) => (
+                  {events.map((e, i) => (
                     <li key={e.id}>
-                      <EventCard event={e} km={e.km} going={rsvps.has(e.id)} saved={saved.has(e.id)}
+                      <EventCard index={i} event={e} km={e.km} going={rsvps.has(e.id)} saved={saved.has(e.id)}
                         onSave={() => toggleSaved(e.id)} onView={() => select({ kind: 'event', id: e.id }, e.position)} />
                     </li>
                   ))}
@@ -318,7 +327,7 @@ export default function Explore() {
                       ) : eventsLoading && !apiEvents ? (
                         'Finding events near you…'
                       ) : (
-                        <>{friendsOnly ? 'No events from people you follow yet.' : 'Nothing matches yet.'}
+                        <>{companyOnly ? 'No one is looking for company with these filters yet.' : friendsOnly ? 'No events from people you follow yet.' : 'Nothing matches yet.'}
                           {friendsOnly && <span className="mt-1 block text-sm">Follow more people in Profile → Connections, or try another day.</span>}
                           {filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
                       )}
@@ -355,7 +364,7 @@ function Divider() {
 
 
 function Tag({ children }: { children: ReactNode }) {
-  return <span className="rounded-full bg-accent-soft px-3 py-1 text-sm font-semibold text-accent-strong">{children}</span>
+  return <span className="pop-tag rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-fg ring-1 ring-inset ring-[var(--edge)]">{children}</span>
 }
 
 /** "Your event" and "Friends only" markers for events people create in Nexus. */
@@ -363,30 +372,30 @@ function OwnerBadges({ event: e }: { event: NexusEvent }) {
   if (!e.mine && e.visibility !== 'private') return null
   return (
     <>
-      {e.mine && <span className="inline-flex items-center gap-1 rounded-full bg-brand px-3 py-1 text-sm font-semibold text-on-brand"><Sparkles className="size-3.5" aria-hidden />Your event</span>}
-      {e.visibility === 'private' && <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-3 py-1 text-sm font-semibold text-fg"><Lock className="size-3.5" aria-hidden />Friends only</span>}
+      {e.mine && <span className="pop-tag inline-flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-fg ring-1 ring-inset ring-[var(--edge)]"><Sparkles className="size-3.5" aria-hidden />Your event</span>}
+      {e.visibility === 'private' && <span className="pop-tag inline-flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-fg ring-1 ring-inset ring-[var(--edge)]"><Lock className="size-3.5" aria-hidden />Friends only</span>}
     </>
   )
 }
 
 function VibeTag({ vibe }: { vibe: Vibe }) {
-  return <span title={VIBES[vibe].hint} className="rounded-full bg-brand-tint px-3 py-1 text-sm font-semibold text-brand-strong">{VIBES[vibe].label}</span>
+  return <span title={VIBES[vibe].hint} className="pop-tag rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-fg ring-1 ring-inset ring-[var(--edge)]">{VIBES[vibe].label}</span>
 }
 
 function SaveButton({ saved, onSave, label }: { saved: boolean; onSave: () => void; label: string }) {
   return (
     <button type="button" onClick={onSave} aria-pressed={saved} aria-label={saved ? `Unsave ${label}` : `Save ${label}`} title={saved ? 'Saved' : 'Save'}
-      className={cx('grid size-10 place-items-center rounded-full border transition',
-        saved ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface text-accent-strong hover:border-accent')}>
-      <Bookmark className="size-4.5" aria-hidden fill={saved ? 'currentColor' : 'none'} />
+      className={cx('grid size-9 place-items-center rounded-[0.625rem] border transition',
+        saved ? 'border-brand-edge bg-brand-tint text-brand-strong' : 'border-[var(--edge)] bg-surface text-fg hover:text-fg')}>
+      <Bookmark className="size-4" aria-hidden fill={saved ? 'currentColor' : 'none'} />
     </button>
   )
 }
 
 function DistanceBadge({ km }: { km: number }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-tint px-3 py-1 text-sm font-extrabold text-brand-strong">
-      <MapPin className="size-3.5" aria-hidden /> {fmtDistance(km)}
+    <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted">
+      <MapPin className="size-3.5" aria-hidden />{fmtDistance(km)}
     </span>
   )
 }
@@ -406,43 +415,37 @@ function EventCover({ event: e, className }: { event: NexusEvent; className?: st
   )
 }
 
-function EventCard({ event: e, km, going, saved, onSave, onView }: {
-  event: NexusEvent; km: number; going: boolean; saved: boolean; onSave: () => void; onView: () => void
+function EventCard({ event: e, km, going, saved, onSave, onView, index }: {
+  event: NexusEvent; km: number; going: boolean; saved: boolean; onSave: () => void; onView: () => void; index: number
 }) {
   return (
-    <article className="nexus-card overflow-hidden rounded-3xl border border-line shadow-sm transition hover:shadow-md">
+    <article className={`${popCard(index)} overflow-hidden`}>
       <button type="button" onClick={onView} tabIndex={-1} aria-hidden className="relative block w-full">
         <EventCover event={e} className="aspect-[16/7]" />
         {e.source && e.source !== 'community' && e.imageUrl && (
-          <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white">{SOURCE_LABEL[e.source]}</span>
+          <span className="absolute bottom-2 left-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">{SOURCE_LABEL[e.source]}</span>
         )}
       </button>
-      <div className="p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold text-muted">
-            <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{placeOf(e)}</span>
-            <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden />{fmtWhen(e.start, e.durationMin)}</span>
-            <span className="inline-flex items-center gap-1"><Ticket className="size-3.5" aria-hidden />{e.cost}</span>
-          </p>
-          <h3 className="mt-1.5 text-xl font-extrabold leading-snug tracking-tight">{e.title}</h3>
-          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-muted">
-            <span><strong className="text-fg">{e.going}</strong> going</span>
-            {e.lookingForBuddy > 0 && <span className="inline-flex items-center gap-1 text-brand-strong"><Footprints className="size-3.5" aria-hidden />{e.lookingForBuddy} looking for a buddy</span>}
-          </p>
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[13px] font-semibold text-brand-strong">{fmtWhen(e.start, e.durationMin)}</p>
+          <DistanceBadge km={km} />
         </div>
-        <DistanceBadge km={km} />
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <OwnerBadges event={e} />
-        {e.categories.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
-        <VibeTag vibe={e.vibe} />
-      </div>
-      <div className="mt-4 flex items-center gap-3">
-        <button type="button" onClick={onView} className="btn-primary rounded-full px-5 py-2 font-bold">View event</button>
-        <SaveButton saved={saved} onSave={onSave} label={e.title} />
-        {going && <span className="inline-flex items-center gap-1 text-sm font-bold text-success"><Check className="size-4" aria-hidden /> You’re going</span>}
-      </div>
+        <h3 className="mt-1 text-[17px] font-semibold leading-snug">{e.title}</h3>
+        <p className="mt-1 truncate text-sm text-muted">
+          {placeOf(e)}<span aria-hidden> · </span>{e.cost}<span aria-hidden> · </span>{e.going} going
+          {e.lookingForBuddy > 0 && <><span aria-hidden> · </span>{e.lookingForBuddy} looking for a buddy</>}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <OwnerBadges event={e} />
+          {e.categories.map((c) => <Tag key={c}>{CATEGORIES[c].label}</Tag>)}
+          <VibeTag vibe={e.vibe} />
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          <button type="button" onClick={onView} className="btn-primary h-9 px-4">View event</button>
+          <SaveButton saved={saved} onSave={onSave} label={e.title} />
+          {going && <span className="ml-1 inline-flex items-center gap-1 text-sm font-medium text-success"><Check className="size-4" aria-hidden /> Going</span>}
+        </div>
       </div>
     </article>
   )
@@ -470,9 +473,9 @@ function DetailCard({ label, backLabel, onClose, children }: { label: string; ba
   )
 }
 
-function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, reminder, onReminder, saved, onSave, backLabel, onPerson, people }: {
+function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, onCompanyChange, reminder, onReminder, saved, onSave, backLabel, onPerson, people }: {
   event: NexusEvent; km: number; onClose: () => void; people: Person[]
-  going: boolean; onRsvp: () => void; buddy: boolean; onBuddy: () => void; reminder: boolean; onReminder: () => void
+  going: boolean; onRsvp: () => void; buddy: boolean; onBuddy: () => void; onCompanyChange: () => void; reminder: boolean; onReminder: () => void
   saved: boolean; onSave: () => void; backLabel: string
   onPerson: (p: Person) => void
 }) {
@@ -516,24 +519,19 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
       )}
 
       {e.description && <p className="mt-5 leading-relaxed">{e.description}</p>}
-      <EventBuddies eventId={e.id} />
-
-      <div className="mt-5 rounded-2xl border border-line bg-surface p-4">
-        <p className="flex items-center gap-2 font-bold"><Footprints className="size-4.5 text-brand-strong" aria-hidden />
-          {e.lookingForBuddy} {e.lookingForBuddy === 1 ? 'attendee is' : 'attendees are'} looking for someone to go with</p>
-        {friends.length > 0 && (
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {friends.map((p) => (
-                <button key={p.id} type="button" onClick={() => onPerson(p)} title={p.name} aria-label={`${p.name} is going`} className="rounded-full ring-2 ring-surface">
-                  <Avatar person={p} size="sm" />
-                </button>
-              ))}
-            </div>
-            <p className="text-sm text-muted">{friends.map((p) => p.name.split(' ')[0]).join(', ')} {friends.length === 1 ? 'is' : 'are'} going</p>
+      {friends.length > 0 && (
+        <div className="mt-5 flex items-center gap-2">
+          <div className="flex -space-x-2">
+            {friends.map((p) => (
+              <button key={p.id} type="button" onClick={() => onPerson(p)} title={p.name} aria-label={`${p.name} is going`} className="rounded-full ring-2 ring-surface">
+                <Avatar person={p} size="sm" />
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+          <p className="text-sm text-muted">{friends.map((p) => p.name.split(' ')[0]).join(', ')} {friends.length === 1 ? 'is' : 'are'} going</p>
+        </div>
+      )}
+      <EventCompany eventId={e.id} asking={buddy} onChange={onCompanyChange} />
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button type="button" onClick={onRsvp} aria-pressed={going}
@@ -542,7 +540,7 @@ function EventDetail({ event: e, km, onClose, going, onRsvp, buddy, onBuddy, rem
         </button>
         <button type="button" onClick={onBuddy} aria-pressed={buddy}
           className={cx('inline-flex items-center gap-1.5 rounded-full border px-5 py-2.5 font-bold transition',
-            buddy ? 'border-brand bg-brand-tint text-brand-strong' : 'border-line bg-surface hover:bg-surface-2')}>
+            buddy ? 'border-[var(--edge)] bg-fg text-bg' : 'border-line bg-surface hover:bg-surface-2')}>
           {buddy ? <><Check className="size-4" aria-hidden /> Buddy requested</> : <><UserPlus className="size-4" aria-hidden /> Find a buddy</>}
         </button>
         <button type="button" onClick={onReminder} aria-pressed={reminder}

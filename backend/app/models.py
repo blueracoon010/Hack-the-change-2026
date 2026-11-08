@@ -70,6 +70,28 @@ class GroupMessage(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now, index=True)
 
 
+class CustomCommunity(SQLModel, table=True):
+    """A community someone made on the Community page. Public: anyone can find and join it.
+    Private: only the creator's friends (mutual follows) and existing members can see or join it."""
+    id: str = Field(primary_key=True)  # "c-" + random hex; built-in groups use short words, so ids never clash
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    name: str
+    description: str = ''
+    interest: str = ''
+    icon: str = 'users'  # key into the frontend's icon map
+    visibility: str = Field(default='public', index=True)  # public | private
+    channels_json: str = '["introductions", "general"]'
+    created_at: datetime = Field(default_factory=_now)
+
+
+class UserAvatar(SQLModel, table=True):
+    """Profile photo: a small square JPEG (resized in the browser), stored as a data URL.
+    Who can see it follows the profile rule (yourself, public profiles, people you follow)."""
+    user_id: int = Field(foreign_key="user.id", primary_key=True)
+    photo: str
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class InviteCode(SQLModel, table=True):
     """Invite-a-friend: a short code (and link) that lets someone become your friend (mutual follow) in one step."""
     code: str = Field(primary_key=True)  # e.g. "K7M2QX9P"

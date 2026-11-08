@@ -77,6 +77,8 @@ Copy-Item backend\.env.example backend\.env
 Copy-Item frontend\.env.example frontend\.env
 ```
 
+**API keys, all optional:** a Ticketmaster key (`TICKETMASTER_API_KEY`), a Meetup token (`MEETUP_ACCESS_TOKEN`) and a Calgary Open Data app token (`CALGARY_APP_TOKEN`) for more events; a Gmail address and app password (`SMTP_USER`, `SMTP_PASSWORD`) for reset and reminder emails; and a Google Maps key (`VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`), without which the map falls back to free OpenStreetMap.
+
 Set in `backend/.env`:
 
 - `TICKETMASTER_API_KEY`: a free key from [developer.ticketmaster.com](https://developer.ticketmaster.com). Without it, the map still shows City of Calgary events (free, no key) and events created in Nexus.

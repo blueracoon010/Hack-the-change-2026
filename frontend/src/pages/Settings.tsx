@@ -93,11 +93,6 @@ export default function Settings() {
         <p className="mb-2 text-sm text-muted">Saved on this device only.</p>
         <div className="divide-y divide-line">
           <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <p className="font-bold">Theme</p>
-            <Segmented label="Theme" value={prefs.theme} onChange={(theme) => update({ theme })}
-              options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3">
             <p className="font-bold">Text size</p>
             <Segmented label="Text size" value={prefs.textSize} onChange={(textSize) => update({ textSize })}
               options={[{ value: 'md', label: 'Default' }, { value: 'lg', label: 'Large' }, { value: 'xl', label: 'Extra large' }]} />

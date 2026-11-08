@@ -80,7 +80,8 @@ def prune_past(session: Session) -> None:
     cutoff = utcnow() - timedelta(days=7)
     stale = session.exec(select(Event.id).where(Event.source != "community", Event.start < cutoff)).all()
     if stale:
-        from .models import EventRsvp, EventSave
+        from .models import BuddyPair, EventRsvp, EventSave
+        session.exec(delete(BuddyPair).where(BuddyPair.event_id.in_(stale)))
         session.exec(delete(EventRsvp).where(EventRsvp.event_id.in_(stale)))
         session.exec(delete(EventSave).where(EventSave.event_id.in_(stale)))
         from ..badges.router import detach_checkins

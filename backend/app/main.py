@@ -7,8 +7,11 @@ from .config import settings
 from .db import init_db
 from .events.router import router as events_router
 from .events.sync import start_background_sync
+from .events.reminders import start_reminders
 from .schedule.router import router as schedule_router
 from .badges.router import router as badges_router
+from .wellbeing.router import router as wellbeing_router
+from .dm.router import router as dm_router
 from .routers import auth, calgary, community, energy, ml, users, social, buddies
 
 
@@ -16,9 +19,11 @@ from .routers import auth, calgary, community, energy, ml, users, social, buddie
 async def lifespan(_: FastAPI):
     init_db()
     sync_task = start_background_sync()
+    reminder_task = start_reminders()
     yield
-    if sync_task:
-        sync_task.cancel()
+    for task in (sync_task, reminder_task):
+        if task:
+            task.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -31,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, buddies.router, community.router, events_router, schedule_router, badges_router):
+for r in (auth.router, users.router, energy.router, calgary.router, ml.router, social.router, buddies.router, community.router, events_router, schedule_router, badges_router, wellbeing_router, dm_router):
     app.include_router(r)
 
 

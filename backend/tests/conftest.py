@@ -6,6 +6,8 @@ os.environ["TICKETMASTER_API_KEY"] = ""
 os.environ["MEETUP_ACCESS_TOKEN"] = ""
 os.environ["CALGARY_EVENTS"] = "0"
 os.environ["EVENTS_SYNC_MINUTES"] = "0"
+os.environ["REMINDER_CHECK_MINUTES"] = "0"  # tests call send_due_reminders directly
+os.environ["SMTP_HOST"] = ""  # never send real email from tests; reset links go to stdout
 
 # Run the same tests against Postgres: TEST_DATABASE_URL=postgresql://user@localhost:5432/test_db python -m pytest -q
 # WARNING: wipes every table in that database first. Never point it at the shared RDS database.
