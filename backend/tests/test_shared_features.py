@@ -70,13 +70,15 @@ def test_saved_events_and_my_people():
         for target in (friend_id, shy_id):
             client.put(f"/api/social/following/{target}", headers=me)
 
+        # Sam is private: following Sam is only a request, so Sam isn't on the map at all until they accept.
         one_way = client.get("/api/social/map-people", headers=me).json()
-        assert one_way["hidden"] == 1 and len(one_way["people"]) == 1
+        assert one_way["hidden"] == 0 and len(one_way["people"]) == 1
         fran = one_way["people"][0]
         assert fran["name"] == "Fran Friend" and fran["relation"] == "following" and fran["position"] == {"lat": 51.0519, "lng": -114.0451}
         assert fran["interests"] == ["learning"] and fran["goingTo"] == []  # RSVPs only for mutual connections
 
-        client.put(f"/api/social/following/{me_id}", headers=friend)  # now mutual
+        client.put(f"/api/social/following/{me_id}", headers=friend)
+        client.post(f"/api/social/requests/{friend_id}/accept", headers=me)  # now mutual
         fran = client.get("/api/social/map-people", headers=me).json()["people"][0]
         assert fran["relation"] == "connection" and fran["goingTo"] == [ev["id"]]
 

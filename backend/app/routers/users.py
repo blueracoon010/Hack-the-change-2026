@@ -5,7 +5,7 @@ from sqlmodel import Session, select, delete, or_
 
 from ..db import get_session
 from ..events.models import Event, EventRsvp, EventSave
-from ..models import User, Follow, SocialProfile, BuddyPreference, GroupMembership, GroupMessage, InviteCode
+from ..models import User, Follow, FollowRequest, SocialProfile, BuddyPreference, GroupMembership, GroupMessage, InviteCode
 from .community import delete_user_community_data
 from ..schedule.router import delete_user_schedule_data
 from ..schedule.models import BusyBlock, ScheduleSettings
@@ -48,6 +48,7 @@ def export_me(user: User = Depends(get_current_user), session: Session = Depends
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_me(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
     session.exec(delete(Follow).where(or_(Follow.follower_id == user.id, Follow.following_id == user.id)))
+    session.exec(delete(FollowRequest).where(or_(FollowRequest.requester_id == user.id, FollowRequest.target_id == user.id)))
     session.exec(delete(SocialProfile).where(SocialProfile.user_id == user.id))
     session.exec(delete(BuddyPreference).where(BuddyPreference.user_id == user.id))
     # Remove references to a deleted person from other users' audience lists.

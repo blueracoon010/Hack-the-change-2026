@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from ..db import get_session
-from ..models import Follow, User
+from ..models import Follow, FollowRequest, User
+from ..social_access import can_view_profile, is_public
 from ..security import get_current_user
 
 router = APIRouter(prefix='/api/social', tags=['social'])
@@ -29,34 +30,77 @@ def my_connections(user: User = Depends(get_current_user), session: Session = De
                          'instagram': public_instagram(profile),
                          'reasons': reasons,
                          'suggested': bool(reasons) and person.id not in outgoing})
+    requested = sorted(session.exec(select(FollowRequest.target_id).where(FollowRequest.requester_id == user.id)).all())
+    names = {p.id: p.name for p in people}
+    requests = [{'id': r.requester_id, 'name': names.get(r.requester_id, 'Someone')} for r in session.exec(
+        select(FollowRequest).where(FollowRequest.target_id == user.id).order_by(FollowRequest.created_at)).all()]
     return {
         'people': sorted(previews, key=lambda p: (not p['suggested'], p['name'].lower(), p['id'])),
         'followers': sorted(incoming), 'following': sorted(outgoing),
         'follower_count': len(incoming), 'following_count': len(outgoing),
+        'requested': requested,  # private accounts you asked to follow, still waiting
+        'requests': requests,    # people asking to follow you
     }
+
+def _add_follow(session: Session, follower_id: int, following_id: int) -> None:
+    request = session.get(FollowRequest, (follower_id, following_id))
+    if request is not None:
+        session.delete(request)
+    if session.get(Follow, (follower_id, following_id)) is None:
+        session.add(Follow(follower_id=follower_id, following_id=following_id))
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        # Concurrent duplicate requests are successful; other failures are not.
+        if session.get(Follow, (follower_id, following_id)) is None:
+            raise
+
 
 @router.put('/following/{target_id}', status_code=204)
 def follow(target_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
+    """Public account: you follow them right away. Private account: sends a follow request they can accept or decline
+    (GET /api/social/me lists it under `requested`)."""
     if target_id == user.id:
         raise HTTPException(400, 'You cannot follow yourself')
     if session.get(User, target_id) is None:
         raise HTTPException(404, 'User not found')
-    if session.get(Follow, (user.id, target_id)) is None:
-        session.add(Follow(follower_id=user.id, following_id=target_id))
+    if session.get(Follow, (user.id, target_id)) is not None:
+        return Response(status_code=204)
+    if is_public(session, target_id):
+        _add_follow(session, user.id, target_id)
+    elif session.get(FollowRequest, (user.id, target_id)) is None:
+        session.add(FollowRequest(requester_id=user.id, target_id=target_id))
         try:
             session.commit()
-        except IntegrityError:
+        except IntegrityError:  # sent twice at once
             session.rollback()
-            # Concurrent duplicate requests are successful; other failures are not.
-            if session.get(Follow, (user.id, target_id)) is None:
-                raise
     return Response(status_code=204)
 
 @router.delete('/following/{target_id}', status_code=204)
 def unfollow(target_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
-    edge = session.get(Follow, (user.id, target_id))
-    if edge is not None:
-        session.delete(edge)
+    """Unfollow, or cancel a follow request you sent."""
+    for row in (session.get(Follow, (user.id, target_id)), session.get(FollowRequest, (user.id, target_id))):
+        if row is not None:
+            session.delete(row)
+    session.commit()
+    return Response(status_code=204)
+
+
+@router.post('/requests/{requester_id}/accept', status_code=204)
+def accept_request(requester_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
+    """Let someone who asked follow you. They can now see your profile."""
+    if session.get(FollowRequest, (requester_id, user.id)) is None:
+        raise HTTPException(404, 'No follow request from this person')
+    _add_follow(session, requester_id, user.id)
+    return Response(status_code=204)
+
+
+@router.delete('/requests/{requester_id}', status_code=204)
+def decline_request(requester_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Response:
+    request = session.get(FollowRequest, (requester_id, user.id))
+    if request is not None:
+        session.delete(request)
         session.commit()
     return Response(status_code=204)
 
@@ -132,6 +176,7 @@ def save_social_profile(body: SocialDetails, user: User = Depends(get_current_us
         profile.show_instagram = body.show_instagram
     if body.interests is not None:
         profile.interests_json = json.dumps(body.interests)
+    went_public = body.discoverable is True and not profile.discoverable
     if body.discoverable is not None:
         profile.discoverable = body.discoverable
     if body.bio is not None:
@@ -142,6 +187,9 @@ def save_social_profile(body: SocialDetails, user: User = Depends(get_current_us
         profile.social_style = body.social_style
     session.add(profile)
     session.commit()
+    if went_public:  # like Instagram: switching to public approves everyone who was waiting
+        for request in session.exec(select(FollowRequest).where(FollowRequest.target_id == user.id)).all():
+            _add_follow(session, request.requester_id, user.id)
     return get_social_profile(user, session)
 
 # ---------- Invite a friend ----------
@@ -227,6 +275,9 @@ def accept_invite(code: str, user: User = Depends(get_current_user), session: Se
     if person.id == user.id:
         raise HTTPException(400, "That's your own invite. Share it with a friend!")
     for follower, following in ((user.id, person.id), (person.id, user.id)):
+        request = session.get(FollowRequest, (follower, following))
+        if request is not None:
+            session.delete(request)
         if session.get(Follow, (follower, following)) is None:
             session.add(Follow(follower_id=follower, following_id=following))
     try:
@@ -239,7 +290,8 @@ def accept_invite(code: str, user: User = Depends(get_current_user), session: Se
 @router.get('/people/{person_id}')
 def view_person(person_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
     """Another member's profile. Name and follow counts are always visible to signed-in members; everything else
-    (bio, neighbourhood, interests, Instagram, events) only if that person turned on discovery. You always see your own."""
+    (bio, neighbourhood, interests, Instagram, events) if the profile is public, or private and you're an accepted
+    follower. You always see your own."""
     from ..events.models import Event, utcnow
     from ..events.router import visible_to
 
@@ -248,12 +300,14 @@ def view_person(person_id: int, user: User = Depends(get_current_user), session:
         raise HTTPException(404, 'User not found')
     is_me = person.id == user.id
     profile = session.get(SocialProfile, person.id)
-    visible = is_me or bool(profile and profile.discoverable)
+    visible = can_view_profile(session, user.id, person.id)
     followers = set(session.exec(select(Follow.follower_id).where(Follow.following_id == person.id)).all())
     following = set(session.exec(select(Follow.following_id).where(Follow.follower_id == person.id)).all())
     out = {
         'id': person.id, 'name': person.name, 'joined': person.created_at.isoformat(), 'is_me': is_me,
-        'private': not visible,
+        'private': not visible,  # True = you can only see the name and counts
+        'private_account': not is_public(session, person.id),
+        'requested': session.get(FollowRequest, (user.id, person.id)) is not None,
         'follower_count': len(followers), 'following_count': len(following),
         'is_following': user.id in followers, 'follows_you': user.id in following,
     }
@@ -270,7 +324,7 @@ def view_person(person_id: int, user: User = Depends(get_current_user), session:
             'bio': profile.bio if profile else '', 'neighbourhood': profile.neighbourhood if profile else '',
             'social_style': profile.social_style if profile else 'A little of both',
             'interests': their_interests, 'shared_interests': sorted(my_interests & set(their_interests)),
-            'instagram': (profile.instagram if profile else '') if is_me else public_instagram(profile),
+            'instagram': (profile.instagram if profile else '') if is_me else (profile.instagram if profile and profile.show_instagram else ''),
             'events': [{'id': str(e.id), 'title': e.title, 'start': e.start.isoformat(), 'venue': e.venue_name or ''} for e in events]}
 
 
@@ -297,7 +351,8 @@ def _open_to_go_with(viewer_id: int, person_id: int, mutual: bool, row) -> bool:
 async def map_people(user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
     """People you follow, shaped like `Person` in frontend/src/lib/nexus.ts.
 
-    Privacy: a pin appears only if that person turned on discovery AND entered a neighbourhood; the pin is the
+    Privacy: a pin appears only if you can see their profile (public, or private and you're an accepted follower)
+    AND they entered a neighbourhood; the pin is the
     neighbourhood's centre, never an address. Which events they're going to is shown to mutual connections only.
     """
     from ..events.geocode import geocode
@@ -317,7 +372,7 @@ async def map_people(user: User = Depends(get_current_user), session: Session = 
     out, hidden = [], 0
     for person in people:
         profile = profiles.get(person.id)
-        if not profile or not profile.discoverable or not profile.neighbourhood.strip():
+        if not profile or not profile.neighbourhood.strip():  # everyone here is someone you follow, so you can see them
             hidden += 1
             continue
         point = await geocode(session, f'{profile.neighbourhood}, Calgary, AB')

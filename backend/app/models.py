@@ -26,6 +26,13 @@ class Follow(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
+class FollowRequest(SQLModel, table=True):
+    """A pending request to follow a private account (like Instagram). Accepting it turns it into a Follow."""
+    requester_id: int = Field(foreign_key="user.id", primary_key=True)
+    target_id: int = Field(foreign_key="user.id", primary_key=True, index=True)
+    created_at: datetime = Field(default_factory=_now)
+
+
 class SocialProfile(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     instagram: str = ''

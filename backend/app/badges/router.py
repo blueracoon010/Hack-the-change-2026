@@ -26,7 +26,8 @@ from sqlmodel import Session, delete, select
 from ..db import get_session
 from ..events.models import Event, EventRsvp
 from ..events.router import friend_ids
-from ..models import SocialProfile, User
+from ..models import User
+from ..social_access import can_view_profile
 from ..security import get_current_user
 from .models import EventCheckIn
 
@@ -92,8 +93,7 @@ def my_badges(user: User = Depends(get_current_user), session: Session = Depends
 def person_badges(person_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> dict:
     if session.get(User, person_id) is None:
         raise HTTPException(404, "User not found")
-    profile = session.get(SocialProfile, person_id)
-    if person_id != user.id and not (profile and profile.discoverable) and person_id not in friend_ids(session, user.id):
+    if not can_view_profile(session, user.id, person_id):
         return {"private": True, "earned": 0, "attended": 0, "badges": []}
     s = _summary(session, person_id)
     return {"private": False, "earned": s["earned"], "attended": s["attended"], "badges": [b for b in s["badges"] if b["earned"]]}

@@ -1,8 +1,9 @@
 // Another member's profile, from the shared database (GET /api/social/people/:id).
-// Only the name and follow counts are shown unless that person made their profile Public (Profile → About me).
+// Like Instagram: a public profile is visible to everyone; a private one only to followers they accepted.
+// Following a private account sends a request (the button shows "Requested" until they answer).
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, Coffee, Lock, MapPin, Sparkles, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Clock, Coffee, Lock, MapPin, Sparkles, UserCheck, UserPlus } from 'lucide-react'
 import { Button, Card, ErrorState, Loading } from '../components/ui'
 import { api, ApiError } from '../lib/api'
 import { fmtWhen } from '../lib/nexus'
@@ -11,6 +12,8 @@ import { BadgeIcon, type Badge } from '../components/Badges'
 type Person = {
   id: number; name: string; joined: string; is_me: boolean; private: boolean
   follower_count: number; following_count: number; is_following: boolean; follows_you: boolean
+  /** The account is private (whether or not you can see it). */ private_account?: boolean
+  /** You asked to follow and they haven't answered yet. */ requested?: boolean
   bio?: string; neighbourhood?: string; social_style?: string; interests?: string[]; shared_interests?: string[]
   instagram?: string; events?: { id: string; title: string; start: string; venue: string }[]
 }
@@ -38,7 +41,7 @@ export default function PersonProfile() {
     if (!person || busy) return
     setBusy(true)
     try {
-      await api(`/api/social/following/${person.id}`, { method: person.is_following ? 'DELETE' : 'PUT' })
+      await api(`/api/social/following/${person.id}`, { method: person.is_following || person.requested ? 'DELETE' : 'PUT' })
       setPerson(await api<Person>(`/api/social/people/${person.id}`))
       window.dispatchEvent(new Event('corkboard-social-updated'))
     } catch (e) { setError(e instanceof ApiError ? e : new ApiError(0, String(e))) } finally { setBusy(false) }
@@ -59,8 +62,12 @@ export default function PersonProfile() {
             <div className="-mt-10 grid size-24 place-items-center rounded-3xl border-4 border-surface bg-brand text-4xl font-extrabold text-white shadow-sm" aria-hidden="true">{person.name[0]?.toUpperCase()}</div>
             {person.is_me
               ? <Link to="/profile" className="rounded-full border border-line px-4 py-2 text-sm font-bold hover:bg-surface-2">Edit my profile</Link>
-              : <Button variant={person.is_following ? 'secondary' : 'primary'} loading={busy} onClick={toggleFollow} aria-label={`${person.is_following ? 'Unfollow' : 'Follow'} ${person.name}`}>
-                  {person.is_following ? <><UserCheck size={16} aria-hidden /> Following</> : <><UserPlus size={16} aria-hidden /> Follow</>}
+              : <Button variant={person.is_following || person.requested ? 'secondary' : 'primary'} loading={busy} onClick={toggleFollow}
+                  aria-label={person.is_following ? `Unfollow ${person.name}` : person.requested ? `Cancel follow request to ${person.name}` : `Follow ${person.name}`}
+                  title={person.is_following ? 'Unfollow' : person.requested ? 'Cancel request' : undefined}>
+                  {person.is_following ? <><UserCheck size={16} aria-hidden /> Following</>
+                    : person.requested ? <><Clock size={16} aria-hidden /> Requested</>
+                    : <><UserPlus size={16} aria-hidden /> Follow</>}
                 </Button>}
           </div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{person.name}</h1>
@@ -78,7 +85,10 @@ export default function PersonProfile() {
 
       {person.private ? (
         <Card><p className="flex items-start gap-3 text-muted"><Lock size={20} className="mt-0.5 shrink-0" aria-hidden />
-          {person.name.split(' ')[0]} keeps their profile private. You can still follow them; they choose what to share.</p></Card>
+          <span><strong className="block text-fg">This account is private</strong>
+            {person.requested
+              ? `Request sent. You’ll see ${person.name.split(' ')[0]}’s profile once they accept.`
+              : `Follow ${person.name.split(' ')[0]} to see their profile. They’ll get a request to accept.`}</span></p></Card>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2">
           <Card>

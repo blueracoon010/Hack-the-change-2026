@@ -102,9 +102,13 @@ def test_private_events_are_friends_only():
         host_id, friend_id = _user_id(client, host), _user_id(client, friend)
 
         # host <-> friend follow each other (friends); fan only follows the host
+        fan_id = _user_id(client, fan)
         assert client.put(f"/api/social/following/{friend_id}", headers=host).status_code == 204
+        assert client.post(f"/api/social/requests/{host_id}/accept", headers=friend).status_code == 204
         assert client.put(f"/api/social/following/{host_id}", headers=friend).status_code == 204
         assert client.put(f"/api/social/following/{host_id}", headers=fan).status_code == 204
+        for requester in (friend_id, fan_id):
+            assert client.post(f"/api/social/requests/{requester}/accept", headers=host).status_code == 204
 
         where = {"position": {"lat": 51.05, "lng": -114.07}}
         pub = client.post("/api/events", headers=host, json={"title": "Open garden day", "start": soon, **where}).json()
@@ -142,7 +146,9 @@ def test_attendance_calendar_and_export():
         other = _signup(client, 'calendar-other@example.com')
         host_id, guest_id = _user_id(client, host), _user_id(client, guest)
         client.put(f'/api/social/following/{guest_id}', headers=host)
+        client.post(f'/api/social/requests/{host_id}/accept', headers=guest)
         client.put(f'/api/social/following/{host_id}', headers=guest)
+        client.post(f'/api/social/requests/{guest_id}/accept', headers=host)
         soon = datetime.now(timezone.utc) + timedelta(days=60)
         def create(title, start, visibility='public', duration=90):
             r = client.post('/api/events', headers=host, json={'title': title, 'start': start.isoformat(), 'durationMin': duration, 'visibility': visibility, 'description': 'First line\nSecond; comma, slash \\ and café', 'venue': 'Library', 'position': {'lat': 51.04, 'lng': -114.07}})

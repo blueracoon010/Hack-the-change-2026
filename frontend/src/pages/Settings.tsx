@@ -79,7 +79,7 @@ export default function Settings() {
         <div className="divide-y divide-line">
           <div className="flex items-center gap-3">
             <Globe className="size-5 shrink-0 text-brand-strong" aria-hidden />
-            <div className="flex-1"><Switch label="Public profile" description="Members can see your bio, interests and events." checked={!!social?.discoverable} onChange={setPublic} /></div>
+            <div className="flex-1"><Switch label="Public profile" description={social?.discoverable ? "Anyone can see your profile and follow you." : "Private: people send a follow request, and only followers you accept see your profile."} checked={!!social?.discoverable} onChange={setPublic} /></div>
           </div>
           <div className="flex items-center gap-3">
             <CalendarClock className="size-5 shrink-0 text-brand-strong" aria-hidden />

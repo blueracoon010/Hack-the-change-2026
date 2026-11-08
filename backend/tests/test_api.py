@@ -47,7 +47,13 @@ def test_follow_graph():
         assert client.put('/api/social/following/999999', headers=auth_a).status_code == 404
         for _ in range(2):
             assert client.put(f'/api/social/following/{b}', headers=auth_a).status_code == 204
+        # B is private (the default), so A's follow is a request until B accepts it.
+        assert client.get('/api/social/me', headers=auth_a).json()['requested'] == [b]
+        assert client.get('/api/social/me', headers=auth_b).json()['requests'] == [{'id': a, 'name': 'FollowerA'}]
+        assert client.post(f'/api/social/requests/{a}/accept', headers=auth_a).status_code == 404  # not A's to accept
+        assert client.post(f'/api/social/requests/{a}/accept', headers=auth_b).status_code == 204
         state_a = client.get('/api/social/me', headers=auth_a).json()
+        assert state_a['requested'] == []
         state_b = client.get('/api/social/me', headers=auth_b).json()
         assert state_a['following'] == [b]
         assert state_a['following_count'] == 1
@@ -57,6 +63,7 @@ def test_follow_graph():
         assert all(set(p) == {'id', 'name', 'instagram', 'reasons', 'suggested'} for p in state_a['people'])
         assert a not in [p['id'] for p in state_a['people']]
         assert client.put(f'/api/social/following/{a}', headers=auth_b).status_code == 204
+        assert client.post(f'/api/social/requests/{b}/accept', headers=auth_a).status_code == 204
         assert client.get('/api/social/me', headers=auth_a).json()['followers'] == [b]
         for _ in range(2):
             assert client.delete(f'/api/social/following/{b}', headers=auth_a).status_code == 204
@@ -162,8 +169,10 @@ def test_buddy_preferences_and_audiences():
         assert client.put('/api/buddies/me', json={**selected, 'audience': 'mutual'}, headers=auth_a).status_code == 200
         assert available(e1, auth_b) == []
         client.put(f'/api/social/following/{b}', headers=auth_a)
+        client.post(f'/api/social/requests/{a}/accept', headers=auth_b)
         assert available(e1, auth_b) == []
         client.put(f'/api/social/following/{a}', headers=auth_b)
+        client.post(f'/api/social/requests/{b}/accept', headers=auth_a)
         assert available(e1, auth_b)
         assert available(e1, auth_c) == []
         only_b = {**selected, 'audience': 'selected', 'people_ids': [b]}

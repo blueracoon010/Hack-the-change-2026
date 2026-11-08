@@ -21,7 +21,9 @@ def _signup(client, name, email):
 
 def _friends(client, a, a_id, b, b_id):
     assert client.put(f"/api/social/following/{b_id}", headers=a).status_code == 204
+    client.post(f"/api/social/requests/{a_id}/accept", headers=b)  # no-op if b is public
     assert client.put(f"/api/social/following/{a_id}", headers=b).status_code == 204
+    client.post(f"/api/social/requests/{b_id}/accept", headers=a)
 
 
 def _local(day, hour):

@@ -82,3 +82,52 @@ def test_visibility_and_instagram_are_separate_and_invites_make_friends():
         new_code = client.post("/api/social/invites/new", headers=cam).json()["code"]
         assert new_code != code and client.get(f"/api/social/invite/{code}").status_code == 404  # old one switched off
         assert client.get(f"/api/social/invite/{new_code}").status_code == 200
+
+
+def test_follow_requests_work_like_instagram():
+    """Public: follow straight away. Private: a request; only accepted followers see the full profile."""
+    with TestClient(app) as client:
+        pia, pia_id = _signup(client, "Pia Private", "pia-private@example.com")
+        pat, pat_id = _signup(client, "Pat Public", "pat-public@example.com")
+        vic, vic_id = _signup(client, "Vic Viewer", "vic-viewer@example.com")
+        client.put("/api/social/profile", headers=pia, json={"bio": "Quiet walks", "interests": ["Books"], "instagram": "pia_w", "discoverable": False})
+        client.put("/api/social/profile", headers=pat, json={"bio": "Hi all", "discoverable": True})
+        view = lambda who, auth: client.get(f"/api/social/people/{who}", headers=auth).json()  # noqa: E731
+
+        # Public account: instant follow.
+        client.put(f"/api/social/following/{pat_id}", headers=vic)
+        assert view(pat_id, vic)["is_following"] and not view(pat_id, vic)["private"]
+
+        # Private account: name only, and following sends a request.
+        before = view(pia_id, vic)
+        assert before["private"] and before["private_account"] and "bio" not in before and not before["requested"]
+        assert client.get(f"/api/badges/user/{pia_id}", headers=vic).json()["private"] is True
+        client.put(f"/api/social/following/{pia_id}", headers=vic)
+        pending = view(pia_id, vic)
+        assert pending["requested"] and not pending["is_following"] and pending["private"] and "bio" not in pending
+        assert client.get("/api/social/me", headers=pia).json()["requests"] == [{"id": vic_id, "name": "Vic Viewer"}]
+
+        # Cancel, ask again, decline.
+        client.delete(f"/api/social/following/{pia_id}", headers=vic)
+        assert client.get("/api/social/me", headers=pia).json()["requests"] == []
+        client.put(f"/api/social/following/{pia_id}", headers=vic)
+        assert client.delete(f"/api/social/requests/{vic_id}", headers=pia).status_code == 204
+        assert not view(pia_id, vic)["requested"] and view(pia_id, vic)["private"]
+
+        # Ask again and get accepted: now the full profile (Instagram included) and badges are visible.
+        client.put(f"/api/social/following/{pia_id}", headers=vic)
+        assert client.post(f"/api/social/requests/{vic_id}/accept", headers=pia).status_code == 204
+        after = view(pia_id, vic)
+        assert after["is_following"] and not after["requested"] and not after["private"] and after["private_account"]
+        assert after["bio"] == "Quiet walks" and after["instagram"] == "pia_w"
+        assert client.get(f"/api/badges/user/{pia_id}", headers=vic).json()["private"] is False
+        assert view(pia_id, pat)["private"]  # still hidden from everyone else
+
+        # Unfollowing hides it again.
+        client.delete(f"/api/social/following/{pia_id}", headers=vic)
+        assert view(pia_id, vic)["private"]
+
+        # Going public approves everyone who was waiting.
+        client.put(f"/api/social/following/{pia_id}", headers=pat)
+        client.put("/api/social/profile", headers=pia, json={"discoverable": True})
+        assert view(pia_id, pat)["is_following"] and client.get("/api/social/me", headers=pia).json()["requests"] == []
