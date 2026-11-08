@@ -117,6 +117,7 @@ class EventOut(Camel):
     me_going: bool = False  # signed-in user has RSVP'd
     me_looking_for_buddy: bool = False  # ...and asked for a buddy
     mine: bool = False  # signed-in user posted it
+    by_following: bool = False  # posted by someone the signed-in user follows (the "Friends' events" filter)
     visibility: str = "public"  # public | private (friends only)
 
 

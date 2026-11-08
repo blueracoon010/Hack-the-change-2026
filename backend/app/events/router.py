@@ -1,6 +1,7 @@
 ﻿"""/api/events endpoints for the map. Interactive docs: http://localhost:8000/docs#/events"""
 
 import hashlib
+import secrets
 import math
 from datetime import datetime, timedelta
 
@@ -65,8 +66,15 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * 6371 * math.asin(math.sqrt(a))
 
 
+def following_ids(session: Session, user_id: int | None) -> set[int]:
+    """People this user follows (accepted follows only)."""
+    if user_id is None:
+        return set()
+    return set(session.exec(select(Follow.following_id).where(Follow.follower_id == user_id)).all())
+
+
 def to_out(e: Event, counts: dict[int, tuple[int, int]], mine_rsvp: dict[int, bool], user_id: int | None,
-           here: tuple[float, float] | None) -> EventOut:
+           here: tuple[float, float] | None, following: set[int] | None = None) -> EventOut:
     going, buddy = counts.get(e.id, (0, 0))
     duration = int((e.end - e.start).total_seconds() // 60) if e.end and e.end > e.start else DEFAULT_DURATION_MIN
     return EventOut(
@@ -96,6 +104,7 @@ def to_out(e: Event, counts: dict[int, tuple[int, int]], mine_rsvp: dict[int, bo
         me_going=e.id in mine_rsvp,
         me_looking_for_buddy=mine_rsvp.get(e.id, False),
         mine=user_id is not None and e.created_by == user_id,
+        by_following=e.created_by is not None and e.created_by in (following or ()),
         visibility=e.visibility,
     )
 
@@ -152,7 +161,8 @@ def list_events(
     here = (lat, lng) if lat is not None and lng is not None else None
     counts = rsvp_counts(session, [r.id for r in rows])
     mine = dict(session.exec(select(EventRsvp.event_id, EventRsvp.looking_for_buddy).where(EventRsvp.user_id == user_id)).all()) if user_id else {}
-    out = [to_out(r, counts, mine, user_id, here) for r in rows]
+    following = following_ids(session, user_id)
+    out = [to_out(r, counts, mine, user_id, here, following) for r in rows]
     if here:
         if radius_km:
             out = [o for o in out if o.distance_km is not None and o.distance_km <= radius_km]
@@ -296,7 +306,8 @@ def get_event(event_id: int, user_id: int | None = Depends(optional_user_id), se
     if not e or not can_see(e, user_id, session):
         raise HTTPException(404, "Event not found")
     r = session.get(EventRsvp, (event_id, user_id)) if user_id else None
-    return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy} if r else {}, user_id, None)
+    return to_out(e, rsvp_counts(session, [event_id]), {event_id: r.looking_for_buddy} if r else {}, user_id, None,
+                  following_ids(session, user_id))
 
 
 @router.post("", response_model=EventOut, response_model_by_alias=True, status_code=201)
@@ -315,7 +326,7 @@ async def create_event(body: CommunityEventIn, user: User = Depends(get_current_
     cats = list(body.categories) or classify.categorize(body.title, body.description, None)
     e = Event(
         source="community",
-        source_id=f"u{user.id}-{int(utcnow().timestamp() * 1000)}",
+        source_id=f"u{user.id}-{int(utcnow().timestamp() * 1000)}-{secrets.token_hex(3)}",  # random part: two posts in the same millisecond
         title=body.title, description=body.description, host=body.host,
         categories=",".join(cats),
         vibe=body.vibe or classify.vibe(body.title, body.description, None),

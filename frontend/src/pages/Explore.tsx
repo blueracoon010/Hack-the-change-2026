@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import {
   ArrowLeft, Bell, BellRing, Bookmark, Check, Clock, ExternalLink, Footprints, LocateFixed,
-  Lock, MapPin, Search, Sparkles, Ticket, UserPlus, X,
+  Lock, MapPin, Search, Sparkles, Ticket, UserPlus, Users, X,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NexusMap, type Selection } from '../components/map/NexusMap'
@@ -32,6 +32,7 @@ const placeOf = (e: NexusEvent) => (e.source && e.source !== 'community' ? e.ven
 export default function Explore() {
   const [query, setQuery] = useState('')
   const [cats, setCats] = useState<Set<Category>>(new Set())
+  const [friendsOnly, setFriendsOnly] = useState(false) // only events hosted by people you follow
   const [vibe, setVibe] = useState<Vibe | 'all'>('all')
   const [when, setWhen] = useState<When>('week')
   const [day, setDay] = useState<string | null>(null) // when === 'day': the Calgary day picked in the calendar
@@ -118,6 +119,7 @@ export default function Explore() {
     const now = new Date()
     const weekOut = new Date(now); weekOut.setDate(now.getDate() + 7)
     return allEvents
+      .filter((e) => !friendsOnly || e.byFollowing)
       .filter((e) => cats.size === 0 || e.categories.some((c) => cats.has(c)))
       .filter((e) => vibe === 'all' || e.vibe === vibe)
       .filter((e) => when === 'week' ? e.start <= weekOut : happensOn(e, when === 'day' && day ? day : calgaryDay(now)))
@@ -125,7 +127,7 @@ export default function Explore() {
       .map((e) => ({ ...e, km: distanceKm(origin, e.position) }))
       .filter((e) => radiusKm === null || e.km <= radiusKm)
       .sort((a, b) => (sort === 'near' ? a.km - b.km : a.start.getTime() - b.start.getTime()))
-  }, [allEvents, cats, vibe, when, day, q, origin, sort, radiusKm])
+  }, [allEvents, friendsOnly, cats, vibe, when, day, q, origin, sort, radiusKm])
 
   const selectedEvent = selected?.kind === 'event' ? allEvents.find((e) => e.id === selected.id) ?? null : null
 
@@ -155,13 +157,13 @@ export default function Explore() {
     if (!focusEventId) return
     const ev = allEvents.find((e) => e.id === focusEventId)
     if (!ev) return
-    setQuery(''); setCats(new Set()); setVibe('all'); setWhen('day'); setDay(calgaryDay(ev.start)); setRadiusKm(null)
+    setQuery(''); setFriendsOnly(false); setCats(new Set()); setVibe('all'); setWhen('day'); setDay(calgaryDay(ev.start)); setRadiusKm(null)
     select({ kind: 'event', id: ev.id }, ev.position)
     navigate('.', { replace: true, state: null })
   }, [focusEventId, allEvents]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtersActive = cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
-  const resetFilters = () => { setCats(new Set()); setVibe('all'); setWhen('week'); setDay(null); setRadiusKm(null) }
+  const filtersActive = friendsOnly || cats.size > 0 || vibe !== 'all' || when !== 'week' || radiusKm !== null
+  const resetFilters = () => { setFriendsOnly(false); setCats(new Set()); setVibe('all'); setWhen('week'); setDay(null); setRadiusKm(null) }
   const pickWhen = (w: When) => { setWhen(w); if (w !== 'day') setDay(null) }
   // Events per Calgary day, for the dots in the calendar.
   const dayCounts = useMemo(() => {
@@ -216,6 +218,13 @@ export default function Explore() {
         {/* Filters */}
         <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
           <>
+              <button type="button" aria-pressed={friendsOnly} onClick={() => setFriendsOnly((v) => !v)}
+                title="Events hosted by people you follow"
+                className={cx('inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold transition',
+                  friendsOnly ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-muted hover:border-fg/30 hover:text-fg')}>
+                <Users className="size-4" aria-hidden /> Friends’ events
+              </button>
+              <Divider />
               <div role="group" aria-label="Event type" className="flex shrink-0 gap-2">
                 {ALL_CATS.map((c) => {
                   const meta = CATEGORIES[c]
@@ -309,7 +318,8 @@ export default function Explore() {
                       ) : eventsLoading && !apiEvents ? (
                         'Finding events near you…'
                       ) : (
-                        <>Nothing matches yet.
+                        <>{friendsOnly ? 'No events from people you follow yet.' : 'Nothing matches yet.'}
+                          {friendsOnly && <span className="mt-1 block text-sm">Follow more people in Profile → Connections, or try another day.</span>}
                           {filtersActive && <button type="button" onClick={resetFilters} className="mt-2 block w-full font-bold text-brand-strong hover:underline">Clear filters</button>}</>
                       )}
                     </li>

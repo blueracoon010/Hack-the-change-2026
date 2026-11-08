@@ -188,3 +188,21 @@ def test_attendance_calendar_and_export():
         assert 'BEGIN:VEVENT' not in client.get('/api/events/attending/calendar.ics', headers=guest).text
         for auth in (host, guest, other):
             assert client.delete('/api/users/me', headers=auth).status_code == 204
+
+
+def test_events_by_people_you_follow_are_marked():
+    soon = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    with TestClient(app) as client:
+        host = _signup(client, "fe-host@example.com")
+        fan = _signup(client, "fe-fan@example.com")
+        other = _signup(client, "fe-other@example.com")
+        host_id, fan_id = _user_id(client, host), _user_id(client, fan)
+        ev = client.post("/api/events", headers=host, json={"title": "Board game night", "start": soon, "position": {"lat": 51.05, "lng": -114.07}}).json()
+        by_following = lambda auth: next(e for e in client.get("/api/events", headers=auth).json() if e["id"] == ev["id"])["byFollowing"]  # noqa: E731
+        assert by_following(fan) is False
+        client.put(f"/api/social/following/{host_id}", headers=fan)
+        assert by_following(fan) is False  # only a request so far (host is private)
+        client.post(f"/api/social/requests/{fan_id}/accept", headers=host)
+        assert by_following(fan) is True
+        assert client.get(f"/api/events/{ev['id']}", headers=fan).json()["byFollowing"] is True
+        assert by_following(other) is False and by_following(host) is False

@@ -35,6 +35,7 @@ export type NexusEvent = {
   meGoing?: boolean
   meLookingForBuddy?: boolean
   mine?: boolean // you created it
+  byFollowing?: boolean // created by someone you follow
   visibility?: Visibility
 }
 
